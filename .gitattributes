@@ -1,0 +1,6 @@
+* text=auto
+*.md text eol=lf whitespace=-blank-at-eol
+*.ts text eol=lf
+*.tsx text eol=lf
+*.css text eol=lf
+*.json text eol=lf
