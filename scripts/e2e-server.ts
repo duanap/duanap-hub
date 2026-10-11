@@ -30,7 +30,14 @@ createEntry({
 })
 const child = spawn(
   process.execPath,
-  ['node_modules/next/dist/bin/next', 'dev', '--webpack', '-H', '127.0.0.1', '-p', '1027'],
+  [
+    'node_modules/next/dist/bin/next',
+    ...(process.env.HUB_E2E_PRODUCTION === '1' ? ['start'] : ['dev', '--webpack']),
+    '-H',
+    '127.0.0.1',
+    '-p',
+    '1027',
+  ],
   { stdio: 'inherit', env: process.env },
 )
 for (const signal of ['SIGINT', 'SIGTERM'] as const)

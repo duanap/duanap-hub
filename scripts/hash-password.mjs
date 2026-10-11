@@ -1,5 +1,13 @@
 import { randomBytes, scryptSync } from 'node:crypto'
 import { stdin, stdout } from 'node:process'
+import { pathToFileURL } from 'node:url'
+
+// Next.js expands unescaped dollar signs in .env.local.
+export function createPasswordEnvLine(password) {
+  const salt = randomBytes(16).toString('hex')
+  const derived = scryptSync(password, Buffer.from(salt, 'hex'), 64).toString('hex')
+  return `HUB_ADMIN_PASSWORD_HASH=scrypt\\$${salt}\\$${derived}`
+}
 
 function maskedInput(prompt) {
   return new Promise((resolve, reject) => {
@@ -46,17 +54,16 @@ function maskedInput(prompt) {
   })
 }
 
-try {
-  const first = await maskedInput('设置后台密码（至少12位）：')
-  const second = await maskedInput('再次输入确认：')
-  if (first.length < 12 || first.length > 200 || first !== second)
-    throw new Error('密码不一致或长度不符合要求')
-  const salt = randomBytes(16).toString('hex')
-  const derived = scryptSync(first, Buffer.from(salt, 'hex'), 64).toString('hex')
-  console.log('\n复制下面这一行到 .env.local：\n')
-  console.log(`HUB_ADMIN_PASSWORD_HASH=scrypt$${salt}$${derived}`)
-  console.log('\n密码本身未写入文件。')
-} catch (error) {
-  console.error(error instanceof Error ? error.message : '操作失败')
-  process.exitCode = 1
-}
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
+  try {
+    const first = await maskedInput('设置后台密码（至少12位）：')
+    const second = await maskedInput('再次输入确认：')
+    if (first.length < 12 || first.length > 200 || first !== second)
+      throw new Error('密码不一致或长度不符合要求')
+    console.log('\n复制下面这一行到 .env.local：\n')
+    console.log(createPasswordEnvLine(first))
+    console.log('\n密码本身未写入文件。')
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : '操作失败')
+    process.exitCode = 1
+  }

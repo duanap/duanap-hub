@@ -11,11 +11,11 @@ test('V4.4 public layout has accessible five-item mobile dock and scroll blur', 
   await expect(page.getByRole('heading', { name: /把好奇心/ })).toBeVisible()
   await page.evaluate(() => window.scrollTo(0, 200))
   await expect(page.locator('.site-header')).toHaveClass(/is-scrolled/)
-  expect(
-    await page
-      .locator('.site-header')
-      .evaluate((element) => getComputedStyle(element).backdropFilter),
-  ).toContain('blur')
+  await expect
+    .poll(() =>
+      page.locator('.site-header').evaluate((element) => getComputedStyle(element).backdropFilter),
+    )
+    .toContain('blur')
   await expect(page.getByRole('link', { name: /ICP备案：/ })).toHaveAttribute(
     'href',
     'https://beian.miit.gov.cn/',

@@ -27,8 +27,8 @@ export default async function ShareImage() {
       >
         <img
           src={art}
-          width="860"
-          height="500"
+          width={860}
+          height={500}
           style={{ position: 'absolute', right: 0, bottom: 0, objectFit: 'cover' }}
         />
         <div

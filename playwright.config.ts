@@ -26,7 +26,7 @@ export default defineConfig({
   },
   reporter: [['list']],
   webServer: {
-    command: 'node node_modules/tsx/dist/cli.mjs scripts/e2e-server.ts',
+    command: `"${process.execPath}" node_modules/tsx/dist/cli.mjs scripts/e2e-server.ts`,
     url: 'http://127.0.0.1:1027/api/health',
     reuseExistingServer: false,
     timeout: 120_000,
