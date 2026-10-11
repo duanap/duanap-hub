@@ -18,9 +18,23 @@ export type HubSettings = {
   policeNumber: string
   policeUrl: string
   copyright: string
+  heroTitle: string
+  heroAccent: string
+  blogUrl: string
+  skills: string
+  experience: string
+  defaultTheme: 'light' | 'dark' | 'system'
 }
 
-export type ModuleId = 'about' | 'projects' | 'games' | 'tools' | 'content' | 'accounts' | 'edgeone'
+export type ModuleId =
+  | 'about'
+  | 'projects'
+  | 'games'
+  | 'tools'
+  | 'updates'
+  | 'content'
+  | 'accounts'
+  | 'edgeone'
 export type ModuleDefinition = {
   id: ModuleId
   name: string
@@ -49,6 +63,16 @@ export type Project = {
   seoDescription: string
   createdAt: string
   updatedAt: string
+  iconUrl: string
+  group: string
+  tags: string[]
+  screenshots: string[]
+  sortOrder: number
+  versionDate: string
+  versionSummary: string
+  maintenanceMessage: string
+  allowEntryDuringMaintenance: boolean
+  contentUpdatedAt: string
 }
 export type ProjectEntry = {
   id: number
@@ -60,6 +84,11 @@ export type ProjectEntry = {
   publishedAt: string | null
   createdAt: string
   updatedAt: string
+  version: string
+  roadmapStatus: 'idea' | 'planned' | 'in-progress' | 'done' | 'paused'
+  effectiveFrom: string
+  effectiveUntil: string
+  expectedAt: string
 }
 
 export const STATUS_LABELS: Record<ProjectStatus, string> = {
@@ -67,7 +96,7 @@ export const STATUS_LABELS: Record<ProjectStatus, string> = {
   online: '正常开放',
   maintenance: '维护中',
   paused: '暂停开放',
-  archived: '停止维护'
+  archived: '停止维护',
 }
 
 export const ENTRY_LABELS: Record<EntryType, string> = {
@@ -75,5 +104,5 @@ export const ENTRY_LABELS: Record<EntryType, string> = {
   preview: '版本预告',
   notice: '维护公告',
   roadmap: '开发路线图',
-  rules: '玩法与说明'
+  rules: '玩法与说明',
 }

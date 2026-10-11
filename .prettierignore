@@ -1,0 +1,7 @@
+node_modules/
+.next/
+.tmp/
+data/
+pnpm-lock.yaml
+docs/DEVKIT-AUDIT-2026-10-10.md
+docs/superpowers/

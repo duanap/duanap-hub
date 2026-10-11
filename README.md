@@ -1,90 +1,86 @@
-# duanap Hub
+# duanap Hub · Little Space V4.4
 
-> 一个小而美、可持续扩展的个人数字门户。**独立新项目 · 开发起点 v0.1.0**。
+基于 Next.js 16、TypeScript 与 SQLite 的个人数字门户。Little Space V4.4 的布局和交互已迁移为真实 React 组件；业务数据由 SQLite 保存，原型 HTML、localStorage 演示项目及虚构统计没有作为生产数据导入。
 
-`duanap.cn` 是个人品牌与作品的主要入口：个人介绍、项目/游戏介绍、手动维护的版本和公告、在线工具、SEO 与 RSS，以及轻量卡片化管理后台 `duanap Studio`。
+本次交付是 **P1 的本地开发候选版本**，位于 `codex/little-space-v44-p1`。正式生产部署与合并 `main` 由所有者另行确认。具体检查证据见 [验收记录](docs/P1-VALIDATION.md)。
 
-## 开发状态与承诺边界
+## 可以做什么
 
-本仓库当前是 **第一阶段开发骨架**，不是现有生产主站的替换包，也不是三个阶段的完成版。包含最小公开页面、SQLite 内容模型、模块启停骨架、独立后台基础身份、项目与公告编辑 API、SEO 及 RSS 示例。**仅为新项目开发基线**，上线前还须完成 `docs/ACCEPTANCE.md` 的验收及生产数据迁移。
+- 首页、关于、作品与游戏展示；项目搜索、分类、人工状态、版本和维护说明。
+- 项目详情按“项目介绍 / 项目截图 / 更新日志 / 开发计划”组织，支持真实图片预览和 Markdown 正文。
+- 主站与 Studio 手机端各自五项底部导航、滚动顶部模糊、明暗主题、安全区与响应式卡片。
+- Studio 独立管理员登录、作品/日志/计划编辑、首页模块排序、工具启停、个人资料、备案及 SEO 设置。
+- 验证后的图片上传、SQLite 在线一致性快照、媒体校验清单、备份下载与全新目录恢复演练。
+- 密码、JSON、UTF-8 Base64、北京时间戳、IP 本地格式检查、Markdown 安全预览和 HTML/纯文本导出。
+- SSR、canonical、分享图、JSON-LD、robots、动态 Sitemap 和 RSS；草稿与禁用内容不公开。
 
-第二阶段接入 `blog.duanap.cn` 的 WordPress/子比用户与积分；第三阶段逐个接入游戏、QQ 机器人、博客文章及 EdgeOne/GitHub 数据。上述扩展服务在第一阶段**不是运行依赖**。
+首次启动不导入原型的游戏版本、演示项目、统计或用户资料。请从 Studio 发布已核实的真实内容。原型插画是装饰素材，不能当作线上项目的真实截图。
 
-## 三阶段交付
+## 本地运行
 
-| 阶段 | 内容 | 必须满足的交付条件 |
-| --- | --- | --- |
-| P1 主站 | 主页、项目/版本/公告、duanap Studio、模块、SEO、基础工具 | 无账号/博客/游戏/EdgeOne API 也可独立访问并上线 |
-| P2 用户 | WordPress 身份、QQ 优先登录、绑定、积分及三端签到接口 | WordPress 故障时公开门户继续正常访问 |
-| P3 扩展 | 游戏、机器人、博客文章、EdgeOne、GitHub、更多工具 | 每个扩展独立启停/维护，核心不受影响 |
-
-详见 [三阶段开发计划](docs/ROADMAP-V1.1.md) 与 [完整需求基线](docs/REQUIREMENTS-V1.0.md)。
-
-## 技术选择
-
-- Next.js 16 App Router / React 19 / TypeScript；Node.js 22。
-- 主站独立 SQLite（`better-sqlite3`）；WordPress 仍维持 MySQL/MariaDB。
-- 自定义 CSS 组件，轻量卡片式后台，不引入大型 UI 系统。
-- 宝塔 + Nginx + EdgeOne；**无 Docker、无强制 CI/GitHub Actions**。
-- 模块注册与后台启停是运行时功能开关；**内部模块代码更新仍需重新构建**。独立游戏/机器人服务可不影响主站地维护。
-
-## 本地开发
-
-需要 Node.js 22+、npm、Git。Windows PowerShell：
+使用 Node.js 22.13+（本轮在 Node.js 24.19.0 验证）及 pnpm 11.25.0：
 
 ```powershell
+corepack pnpm install --frozen-lockfile
 Copy-Item .env.example .env.local
-npm install
 node scripts/hash-password.mjs
-npm run dev
 ```
 
-将密码脚本生成的 `scrypt$...` 字符串复制到 `.env.local` 的 `HUB_ADMIN_PASSWORD_HASH`；密码至少 12 位。然后打开：
+将交互脚本生成的密码哈希填入 `.env.local`，管理员用户名可通过 `HUB_ADMIN_USERNAME` 修改。公开页面无需管理员密码即可启动；后台需要正确配置的独立管理员密码。
+
+```powershell
+corepack pnpm dev
+```
 
 - 主站：<http://127.0.0.1:1026/>
 - 后台：<http://127.0.0.1:1026/duanap/login>
 - 健康：<http://127.0.0.1:1026/api/health>
-- 网站地图：<http://127.0.0.1:1026/sitemap.xml>
-- RSS：<http://127.0.0.1:1026/feed.xml>
+- 站点地图：<http://127.0.0.1:1026/sitemap.xml>
+- 订阅：<http://127.0.0.1:1026/feed.xml>
 
-`HUB_SITE_URL` 必须与实际浏览器访问的源一致，本地默认 `http://127.0.0.1:1026`；生产使用 `https://duanap.cn`。公开内容可以在无管理员环境变量时启动，但后台登录会明确不可用。
+`HUB_SITE_URL` 必须匹配浏览器实际 Origin；它决定 canonical 和后台请求来源校验。`HUB_DATA_DIR` 保存数据库、媒体、迁移前快照和备份。正式部署使用发布目录之外的绝对路径。
 
-```powershell
-npm run typecheck
-npm run build
-npm run check:structural
-```
-
-2026-10-10 本机已通过关键文件结构检查和密码脚本语法检查；未安装 TypeScript 时，结构检查会明确跳过 AST 解析。依赖安装、类型检查、Next.js 构建与浏览器验收仍待完成，验证通过后再上线。
-
-## 独立 GitHub 仓库
-
-仓库：[duanap/duanap-hub](https://github.com/duanap/duanap-hub)，当前为 **Public**。项目简介：
-
-> duanap Hub — 轻量模块化个人门户、项目运营、SEO、统一账号与跨端游戏工作台。
-
-已有远端仓库，无需再次创建。使用本机 Git 克隆开发：
+## 本地验证
 
 ```powershell
-git clone https://github.com/duanap/duanap-hub.git
-Set-Location duanap-hub
+corepack pnpm typecheck
+corepack pnpm test
+corepack pnpm build
+corepack pnpm check:structural
+corepack pnpm test:e2e
 ```
 
-仓库与旧项目完全隔离；分支及推送约定见 [仓库说明](docs/REPOSITORY.md)。
+浏览器测试使用本机 Chrome、1027 端口、隔离数据库与随机临时管理员身份；数据和运行报告位于忽略的目录，不会写入主站数据或执行生产操作。`format` 可统一组件格式，无 CI 前置要求。
 
-## 阅读顺序
+## 备份与恢复
 
-1. [开发路线与每阶段上线条件](docs/ROADMAP-V1.1.md)
-2. [职责、依赖与模块隔离](docs/ARCHITECTURE.md)
-3. [后台与前台设计规范](docs/UI-UX.md)
-4. [数据和接口契约](docs/DATA-AND-API.md)
-5. [Codex 实施说明](AGENTS.md)
-6. [本地、宝塔部署和迁移](docs/DEPLOYMENT.md)
-7. [验收清单](docs/ACCEPTANCE.md)
-8. [实际完成状态和待验证事项](docs/DEVELOPMENT-STATUS.md)
+```powershell
+corepack pnpm backup
+corepack pnpm restore:drill --backup <备份目录或下载的JSON> --target <全新目录>
+```
 
-## 旧项目边界
+CLI 读取 `.env.local` 的持久化目录。在线备份包含一致 SQLite 快照、上传媒体、版本和 SHA-256 清单；单个备份最多 128 MiB。恢复拒绝覆盖已有目录，恢复出的管理员会话会失效。上线及真正替换数据的流程见 [部署和回滚](docs/DEPLOYMENT.md)。
 
-本仓库既不覆盖 `duanap/duanap-index`，也不覆盖 `duanap/index`；不连接生产 WordPress；初次启动不会导入生产账号、积分、文章或游戏数据。实际生产代码来源、数据库备份、子比版本及 OIDC 能力在迁移前必须只读核实。
+## 三个独立阶段
 
-尚未选择开源许可证；公开源码不代表已经授予开源许可。许可证由项目所有者决定。
+| 阶段 | 范围 | 当前边界 |
+| --- | --- | --- |
+| P1 主站 | 页面、作品、Studio、SEO、基础工具、媒体与备份 | 不依赖第三方账号或 API 启动 |
+| P2 用户 | WordPress/子比身份、QQ 优先登录、绑定、签到和积分 | 待完善；普通用户不会成为 Studio 管理员 |
+| P3 扩展 | 小游戏角色/战绩、QQ 机器人、博客摘要、EdgeOne/GitHub 数据和进一步工具 | 待完善；业务服务分别拥有权威数据 |
+
+访问统计、外部集成与统一用户页面会明确显示“待完善”。IP 工具只做本地地址格式与常见类型检查，没有地理归属地数据；Word 格式转换与 HTML → Markdown 尚未接入。
+
+## 仓库与进一步阅读
+
+正式仓库：[duanap/duanap-hub](https://github.com/duanap/duanap-hub)，当前 Public。源码不包含数据库、上传媒体、密码、Token、运行报告或原型 ZIP。未选择开源许可证。
+
+- [本次实现范围](docs/P1-LITTLE-SPACE-V44.md)
+- [本地验收与限制](docs/P1-VALIDATION.md)
+- [三阶段路线](docs/ROADMAP-V1.1.md)
+- [完整需求基线](docs/REQUIREMENTS-V1.0.md)
+- [架构](docs/ARCHITECTURE.md)
+- [数据及 API](docs/DATA-AND-API.md)
+- [部署、升级与回滚](docs/DEPLOYMENT.md)
+
+本项目与旧主页仓库、生产 WordPress、游戏数据分开。旧数据导入、主域切换和现有生产数据库替换是单独的后续工作。

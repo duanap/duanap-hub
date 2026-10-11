@@ -1,16 +1,57 @@
-import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import { PublicShell } from '@/components/PublicShell'
+import { Hero } from '@/components/Hero'
 import { getSiteSettings, isEnabled } from '@/lib/db'
 import { pageMetadata } from '@/lib/seo'
-
-export function generateMetadata():Metadata {const s=getSiteSettings();return pageMetadata(`关于 ${s.displayName}`,s.biography.slice(0,160),'/about',isEnabled('about'))}
-export default function AboutPage(){
-  if(!isEnabled('about'))notFound()
-  const s=getSiteSettings()
-  return <PublicShell><div className="page-heading"><span className="eyebrow">ABOUT ME</span><h1>关于我</h1><p>认识 duanap，分享日常与开发实践。</p></div>
-    <div className="content-card markdown"><h2>{s.displayName}</h2><ReactMarkdown>{s.biography}</ReactMarkdown>
-      <div className="contact-list">{s.githubUrl&&<a href={s.githubUrl} rel="noopener noreferrer" target="_blank">GitHub ↗</a>}{s.publicEmail&&<a href={`mailto:${s.publicEmail}`}>公开邮箱 ↗</a>}</div></div>
-  </PublicShell>
+export function generateMetadata() {
+  const s = getSiteSettings()
+  return pageMetadata('关于 ' + s.displayName, s.tagline, '/about', isEnabled('about'))
+}
+export default function AboutPage() {
+  if (!isEnabled('about')) notFound()
+  const s = getSiteSettings()
+  return (
+    <PublicShell>
+      <Hero
+        site={s}
+        kind="about"
+        title="你好，我是"
+        accent={s.displayName + '。'}
+        description={s.tagline}
+      />
+      <div className="container about-content">
+        <section className="section-block">
+          <div className="section-heading">
+            <h2>关于我</h2>
+          </div>
+          {s.avatarUrl && (
+            <img className="profile-avatar" src={s.avatarUrl} alt={s.displayName + ' 头像'} />
+          )}
+          <div className="markdown">
+            <ReactMarkdown>{s.biography}</ReactMarkdown>
+          </div>
+        </section>
+        <section className="section-block">
+          <h2>喜欢的方向</h2>
+          <div className="skill-tags">
+            {s.skills
+              .split(/[,，\n]/)
+              .filter(Boolean)
+              .map((x) => (
+                <span key={x}>{x}</span>
+              ))}
+          </div>
+        </section>
+        {s.experience && (
+          <section className="section-block">
+            <h2>一路走来</h2>
+            <div className="markdown">
+              <ReactMarkdown>{s.experience}</ReactMarkdown>
+            </div>
+          </section>
+        )}
+      </div>
+    </PublicShell>
+  )
 }

@@ -1,15 +1,29 @@
-import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { PublicShell } from '@/components/PublicShell'
-import { ProjectCard } from '@/components/ProjectCard'
-import { isEnabled, listProjects } from '@/lib/db'
+import { Hero } from '@/components/Hero'
+import { ProjectCatalog } from '@/components/ProjectCatalog'
+import { getSiteSettings, isEnabled, listProjects } from '@/lib/db'
 import { pageMetadata } from '@/lib/seo'
-
-export function generateMetadata():Metadata{return pageMetadata('项目与作品','浏览 duanap 的个人作品、开发项目、版本更新及维护公告。','/projects',isEnabled('projects'))}
-export default function ProjectsPage(){
-  if(!isEnabled('projects'))notFound()
-  const items=listProjects({publishedOnly:true})
-  return <PublicShell><div className="page-heading"><span className="eyebrow">MY WORK</span><h1>项目与作品</h1><p>一些正在维护或持续开发的项目。</p></div>
-    {items.length?<div className="project-grid">{items.map(p=><ProjectCard key={p.id} project={p}/>)}</div>:<div className="soft-placeholder">尚未发布项目。</div>}
-  </PublicShell>
+export function generateMetadata() {
+  return pageMetadata(
+    '项目与作品',
+    '从有趣的想法，到真正可以体验的作品。',
+    '/projects',
+    isEnabled('projects'),
+  )
+}
+export default function ProjectsPage() {
+  if (!isEnabled('projects')) notFound()
+  return (
+    <PublicShell>
+      <Hero
+        site={getSiteSettings()}
+        kind="projects"
+        title="一些认真做过的"
+        accent="小东西。"
+        description="从有趣的想法，到真正可以体验的作品。"
+      />
+      <ProjectCatalog items={listProjects({ publishedOnly: true })} />
+    </PublicShell>
+  )
 }
