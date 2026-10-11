@@ -1,6 +1,6 @@
 # P1 独立部署、数据升级与回滚
 
-本次只完成本地开发与验证；没有修改生产服务器、Nginx、DNS、EdgeOne 或现有数据库。部署及主分支合并待所有者确认。以下是部署步骤，示例路径与域名必须按已核实的运行环境替换。
+2026-10-11 已获所有者授权，部署至 `/www/wwwroot/duanap-hub`，使用 `duanap.cn` 与 `www.duanap.cn`。新增独立 systemd 服务及 Nginx 虚拟主机；没有修改 DNS、EdgeOne、旧站数据库或 main。实际部署证据及回滚命令见 [生产部署记录](PRODUCTION-2026-10-11.md)。以下流程用于后续发布，路径以已核实环境为准。
 
 ## 1. 准备独立发布
 
@@ -9,7 +9,7 @@
 建议保留发布目录和共享数据：
 
 ```text
-/srv/apps/duanap-hub/
+/www/wwwroot/duanap-hub/
   releases/<commit>/       源码、依赖和 .next 构建
   current -> releases/... 当前运行版本
   shared/data/            hub.sqlite、media、backups、migration-backups
@@ -18,7 +18,7 @@
 首次创建 Hub 测试服务，与旧主站保留各自工作目录和数据库。1026 只是默认端口，使用前确认没有冲突。站点数据目录采用绝对路径；运行用户需有目录读写权限，私有目录建议 0700、私有文件 0600。
 
 ```sh
-cd /srv/apps/duanap-hub/releases/<commit>
+cd /www/wwwroot/duanap-hub/releases/<commit>
 corepack pnpm install --frozen-lockfile
 corepack pnpm typecheck
 corepack pnpm test
@@ -30,15 +30,15 @@ node scripts/hash-password.mjs
 随后在服务器本地填写受保护的 `.env.local`：
 
 ```dotenv
-HUB_SITE_URL=https://<批准的测试域名>
-HUB_DATA_DIR=/srv/apps/duanap-hub/shared/data
+HUB_SITE_URL=https://duanap.cn
+HUB_DATA_DIR=/www/wwwroot/duanap-hub/shared/data
 HUB_ADMIN_USERNAME=<管理员名称>
 HUB_ADMIN_PASSWORD_HASH=<交互脚本生成的哈希>
 HUB_TRUST_PROXY=1
 NEXT_TELEMETRY_DISABLED=1
 ```
 
-密码脚本要求交互终端；不把密码、哈希、数据库、备份或服务器配置上传 GitHub。默认部署保留完整固定依赖，以运行 TypeScript 备份/恢复 CLI。
+密码脚本要求交互终端；输出可直接写入 `.env.local` 的一行。Next.js 会展开环境文件中的 `$`，因此哈希的两个分隔符必须保留脚本输出中的 `\$`；不要手工删除反斜杠。直接设置进程环境变量时使用原始 `$`。不把密码、哈希、数据库、备份或服务器私有配置上传 GitHub。默认部署保留完整固定依赖，以运行 TypeScript 备份/恢复 CLI。
 
 ## 2. 启动与 Nginx
 
@@ -63,7 +63,7 @@ location / {
 
 `/_next/static/` 和不可变 `/media/<uuid>.webp` 可以缓存；HTML、Studio、账号页、Studio API、Sitemap、robots 和 Feed 保持不缓存，确保内容撤回和模块禁用的新请求立即生效。EdgeOne 的登录、后台与 API 必须设置为不缓存，保留 Set-Cookie。分享图和装饰静态素材可缓存。
 
-在真正修改配置时先 `nginx -t`，通过后再重载。独立测试成功并不自动授权把旧 `duanap.cn` 切换到新应用。
+在真正修改配置时先 `nginx -t`，通过后再重载。本次所有者已明确授权主域切换；将来的域名与站点切换仍按当次授权范围执行。
 
 ## 3. 上线检查
 
@@ -78,7 +78,7 @@ location / {
 7. 禁用全部可选模块后首页/后台/health/SEO 可用；未配置或不可用的 P2/P3 服务不成为启动依赖。
 8. 创建真实备份，在新目录恢复并核对数据与媒体，重启后保存内容仍存在。
 
-公网、证书、EdgeOne、旧链接迁移和真实生产数据恢复演练尚未执行；这些检查属于批准部署时的必要步骤。
+本次公网、证书、源站、Studio 登录保存、备份及新目录恢复已经执行，见生产记录。旧链接迁移和旧站数据导入未执行，需独立审计及授权。
 
 ## 4. SQLite 升级
 
@@ -121,4 +121,4 @@ corepack pnpm restore:drill --backup <snapshot-directory-or-downloaded-json> --t
 
 当前可回到原开发包代码 `3d2b166`；若已使用本版新配置，旧代码回滚还需配套 v0 数据快照。不要只回退代码而假设旧版可以理解新格式设置。旧主站一直保留，是主域切换后的另一个回滚入口。
 
-源码开发回滚使用新的 `git revert` 提交，不强制推送 main。未修改生产时，无生产状态需要回滚。
+源码开发回滚使用新的 `git revert` 提交，不强制推送 main。本次可执行的主域路由回滚命令见生产记录，所有 Hub 数据保留。

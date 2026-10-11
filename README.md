@@ -52,6 +52,8 @@ corepack pnpm test:e2e
 
 浏览器测试使用本机 Chrome、1027 端口、隔离数据库与随机临时管理员身份；数据和运行报告位于忽略的目录，不会写入主站数据或执行生产操作。`format` 可统一组件格式，无 CI 前置要求。
 
+生产 CSS 和真实发布交互也应验收：先 build，再在 PowerShell 设置 `$env:HUB_E2E_PRODUCTION='1'` 并运行 `corepack pnpm test:e2e`，完成后移除该环境变量。此模式使用 `next start` 和隔离验收数据，避免只验证开发模式而漏掉生产压缩差异。
+
 ## 备份与恢复
 
 ```powershell
@@ -83,4 +85,4 @@ CLI 读取 `.env.local` 的持久化目录。在线备份包含一致 SQLite 快
 - [数据及 API](docs/DATA-AND-API.md)
 - [部署、升级与回滚](docs/DEPLOYMENT.md)
 
-本项目与旧主页仓库、生产 WordPress、游戏数据分开。旧数据导入、主域切换和现有生产数据库替换是单独的后续工作。
+本项目与旧主页仓库、生产 WordPress、游戏数据分开。2026-10-11 已获批准部署至 `duanap.cn`（`www` 跳转到主域），见 [生产部署记录](docs/PRODUCTION-2026-10-11.md)。旧数据导入和现有生产数据库替换仍是独立的后续工作。
