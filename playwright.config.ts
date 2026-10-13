@@ -8,6 +8,7 @@ const baseURL = 'http://127.0.0.1:1027'
 
 export default defineConfig({
   testDir: './tests',
+  testMatch: '**/*.spec.ts',
   fullyParallel: false,
   workers: 1,
   timeout: 30_000,
@@ -21,7 +22,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'node node_modules/next/dist/bin/next ' +
+    command: 'node ' + (process.env.HUB_TEST_OFFLINE === '1' ? '--import ./tests/helpers/offline.mjs ' : '') + 'node_modules/next/dist/bin/next ' +
       (process.env.HUB_TEST_SERVER_MODE === 'production' ? 'start' : 'dev') + ' -H 127.0.0.1 -p 1027',
     url: `${baseURL}/api/health`,
     timeout: 120_000,

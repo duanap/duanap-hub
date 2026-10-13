@@ -3,12 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { HubSettings, ModuleState, Project, ProjectEntry } from '@/lib/types'
 import { ProjectWorkspace, blankEntry, blankProject, editableProject, type EntryDraft, type ProjectDraft } from './studio/ProjectWorkspace'
+import { MediaPicker } from './studio/MediaPicker'
+import { MediaPanel } from './studio/MediaPanel'
+import { BackupPanel } from './studio/BackupPanel'
+import { ThemeControl } from '@/components/ThemeControl'
 
-type Tab = 'overview' | 'projects' | 'site' | 'seo' | 'modules' | 'system'
-const nav: [Tab, string][] = [['overview', '概览'], ['projects', '项目与公告'], ['site', '主页资料'], ['seo', 'SEO 与备案'], ['modules', '模块管理'], ['system', '系统信息']]
+type Tab = 'overview' | 'projects' | 'site' | 'home' | 'seo' | 'modules' | 'system'
+const nav: [Tab, string][] = [['overview', '概览'], ['projects', '项目与公告'], ['site', '主页资料'], ['home', '首页编排'], ['seo', 'SEO 与备案'], ['modules', '模块管理'], ['system', '系统信息']]
 const groups: { label: string; tabs: Tab[] }[] = [
   { label: '工作台', tabs: ['overview'] },
-  { label: '内容管理', tabs: ['projects', 'site', 'modules'] },
+  { label: '内容管理', tabs: ['projects', 'site', 'home', 'modules'] },
   { label: '站点管理', tabs: ['seo', 'system'] },
 ]
 
@@ -41,9 +45,24 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
   const [activeEntryId, setActiveEntryId] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
+  const mediaBusyRef = useRef(0)
+  const [mediaBusy, setMediaBusy] = useState(0)
+  const locked = busy || mediaBusy > 0
+  function onMediaBusyChange(uploading: boolean) {
+    mediaBusyRef.current = Math.max(0, mediaBusyRef.current + (uploading ? 1 : -1))
+    setMediaBusy(mediaBusyRef.current)
+  }
   const intentionalNavigation = useRef(false)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+  const [collapsed, setCollapsed] = useState(false)
+  const [preview, setPreview] = useState(false)
+  const [phonePreview, setPhonePreview] = useState(false)
+  useEffect(() => { try { setCollapsed(localStorage.getItem('hub-sidebar-collapsed') === 'true') } catch {} }, [])
+  function toggleSidebar() {
+    setCollapsed(!collapsed)
+    try { localStorage.setItem('hub-sidebar-collapsed', String(!collapsed)) } catch {}
+  }
 
   const projectEntries = useMemo(() => entries.filter(entry => entry.projectId === activeProjectId)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [entries, activeProjectId])
@@ -53,17 +72,17 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
   const dirty = projectDirty || entryDirty || settingsDirty
 
   useEffect(() => {
-    if (!dirty && !busy) return
+    if (!dirty && !locked) return
     const warn = (event: BeforeUnloadEvent) => {
       if (intentionalNavigation.current) return
       event.preventDefault(); event.returnValue = ''
     }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
-  }, [dirty, busy])
+  }, [dirty, locked])
 
   async function perform(action: () => Promise<void>, message = '已保存') {
-    if (busyRef.current) return
+    if (busyRef.current || mediaBusyRef.current) return
     busyRef.current = true
     setBusy(true); setError(''); setNotice('')
     try { await action(); setNotice(message) }
@@ -71,11 +90,11 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
     finally { busyRef.current = false; setBusy(false) }
   }
   function confirmLeave(hasChanges = dirty) {
-    if (busyRef.current) return false
+    if (busyRef.current || mediaBusyRef.current) return false
     return !hasChanges || window.confirm('有未保存的修改，离开会丢弃这些修改。继续吗？')
   }
   function resetEntry(entry?: ProjectEntry) {
-    const next = entry ? { type: entry.type, title: entry.title, body: entry.body, published: entry.published } : { ...blankEntry }
+    const next = entry ? { type: entry.type, title: entry.title, body: entry.body, published: entry.published, roadmapStatus: entry.roadmapStatus, version: entry.version, effectiveAt: entry.effectiveAt } : { ...blankEntry }
     setActiveEntryId(entry?.id ?? null); setEntryDraft(next); setSavedEntryDraft(next)
   }
   function closeProject() {
@@ -166,53 +185,69 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
   const input = (label: string, key: keyof HubSettings) => <label className="field" key={key}><span>{label}</span>
     <input value={String(settings[key])} onChange={event => field(key, event.target.value as HubSettings[typeof key])} /></label>
 
-  return <div className="studio-root"><aside className="studio-sidebar">
+  return <div className={'studio-root' + (collapsed ? ' sidebar-collapsed' : '')}><aside className="studio-sidebar">
     <div className="studio-brand"><span className="brand-icon">d.</span><div><strong>duanap Studio</strong><small>个人网站管理</small></div></div>
+    <button type="button" className="sidebar-toggle text-action" aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} onClick={toggleSidebar}>{collapsed ? '→' : '← 折叠'}</button>
     <nav className="studio-nav" aria-label="工作台导航">{groups.map(group => <div className="studio-nav-group" key={group.label}>
-      <div className="studio-sidebar-label">{group.label}</div>{group.tabs.map(id => <button key={id} disabled={busy}
-        className={tab === id ? 'selected' : ''} aria-current={tab === id ? 'page' : undefined} type="button" onClick={() => changeTab(id)}>
-        {nav.find(([key]) => key === id)![1]}
+      <div className="studio-sidebar-label">{group.label}</div>{group.tabs.map(id => <button key={id} disabled={locked}
+        className={tab === id ? 'selected' : ''} aria-label={nav.find(([key]) => key === id)![1]} aria-current={tab === id ? 'page' : undefined} type="button" onClick={() => changeTab(id)}>
+        <span className="nav-symbol" aria-hidden="true">{nav.find(([key]) => key === id)![1].slice(0, 1)}</span><span className="nav-text">{nav.find(([key]) => key === id)![1]}</span>
       </button>)}</div>)}</nav>
     <div className="studio-sidebar-bottom"><a href="/" target="_blank" rel="noopener noreferrer">打开网站 ↗</a>
-      <button type="button" disabled={busy} onClick={() => void logout()}>退出登录</button></div>
-  </aside><main className="studio-main" aria-busy={busy}>
+      <button type="button" disabled={locked} onClick={() => void logout()}>退出登录</button></div>
+  </aside><main className="studio-main" aria-busy={locked}>
     <header className="studio-top"><div><span className="eyebrow">DUANAP / STUDIO</span><h1>{nav.find(([id]) => id === tab)?.[1]}</h1>
       <p>{tab === 'projects' ? '让作品、版本和公告保持最新。' : '你的个人网站，从这里管理。'}</p></div>
-      <div className="studio-top-actions"><a className="action-secondary" href="/" target="_blank" rel="noopener noreferrer">预览网站 ↗</a></div></header>
+      <div className="studio-top-actions"><ThemeControl /><a className="action-secondary" href="/" target="_blank" rel="noopener noreferrer">预览网站 ↗</a></div></header>
     {error && <div className="error-banner" role="alert">{error}</div>}{notice && <div className="success-banner" role="status">{notice}</div>}
     {tab === 'overview' && <>
       <div className="studio-metrics">
         <div className="metric-tile"><span>项目总数</span><strong>{projects.length}</strong><small>含草稿</small></div>
         <div className="metric-tile"><span>已发布项目</span><strong>{projects.filter(project => project.published).length}</strong><small>当前公开</small></div>
         <div className="metric-tile"><span>启用模块</span><strong>{modules.filter(module => module.enabled).length}</strong><small>内置注册模块</small></div>
-        <div className="metric-tile"><span>已发布动态</span><strong>{entries.filter(entry => entry.published && projects.some(project => project.id === entry.projectId && project.published)).length}</strong><small>公开项目的更新与公告</small></div>
+        <div className="metric-tile"><span>已发布动态</span><strong>{entries.filter(entry => entry.published && (!entry.effectiveAt || entry.effectiveAt <= new Date().toISOString()) && projects.some(project => project.id === entry.projectId && project.published)).length}</strong><small>公开项目的更新与公告</small></div>
       </div>
       <div className="studio-grid-two"><section className="studio-card"><h2>快捷操作</h2><div className="quick-grid">
-        <button disabled={busy} onClick={() => editProject()}>新增项目 <span>↗</span></button>
-        <button disabled={busy} onClick={() => changeTab('site')}>编辑主页 <span>↗</span></button>
-        <button disabled={busy} onClick={() => changeTab('modules')}>管理模块 <span>↗</span></button>
-        <button disabled={busy} onClick={() => changeTab('seo')}>搜索设置 <span>↗</span></button>
+        <button disabled={locked} onClick={() => editProject()}>新增项目 <span>↗</span></button>
+        <button disabled={locked} onClick={() => changeTab('site')}>编辑主页 <span>↗</span></button>
+        <button disabled={locked} onClick={() => changeTab('modules')}>管理模块 <span>↗</span></button>
+        <button disabled={locked} onClick={() => changeTab('seo')}>搜索设置 <span>↗</span></button>
       </div></section><section className="studio-card"><h2>后续扩展</h2>
         <div className="placeholder-stack">WordPress 会员与积分 · P2</div><div className="placeholder-stack">博客、游戏与外部数据 · P3</div>
         <p className="form-hint">目前专注主站内容管理。</p></section></div>
     </>}
     {tab === 'projects' && <ProjectWorkspace projects={projects} entries={projectEntries} draft={draft} entryDraft={entryDraft}
       activeProjectId={activeProjectId} activeEntryId={activeEntryId} editorOpen={projectEditorOpen}
-      projectDirty={projectDirty} entryDirty={entryDirty} busy={busy}
+      projectDirty={projectDirty} entryDirty={entryDirty} busy={locked} onMediaBusyChange={onMediaBusyChange}
       onProjectChange={patch => setDraft(previous => ({ ...previous, ...patch }))}
       onEntryChange={patch => setEntryDraft(previous => ({ ...previous, ...patch }))}
       onEditProject={editProject} onClose={() => { if (confirmLeave(projectDirty || entryDirty)) closeProject() }}
       onSaveProject={() => void saveProject()} onDeleteProject={() => void removeProject()}
       onEditEntry={editEntry} onSaveEntry={() => void saveEntry()} onDeleteEntry={entry => void removeEntry(entry)} />}
-    {tab === 'site' && <fieldset className="studio-fieldset studio-grid-two" disabled={busy}>
+    {tab === 'site' && <fieldset className="studio-fieldset studio-grid-two" disabled={locked}>
       <section className="studio-card"><h2>基本资料</h2><div className="form-stack">{input('网站名称', 'siteName')}{input('昵称', 'displayName')}{input('一句话介绍', 'tagline')}
         <label className="field"><span>个人介绍（Markdown）</span><textarea rows={8} value={settings.biography} onChange={event => field('biography', event.target.value)} /></label>
       </div></section><section className="studio-card"><h2>社交与联系</h2><div className="form-stack">
-        {input('GitHub 地址', 'githubUrl')}{input('公开邮箱', 'publicEmail')}{input('头像图片地址', 'avatarUrl')}{input('版权署名', 'copyright')}
+        {input('GitHub 地址', 'githubUrl')}{input('公开邮箱', 'publicEmail')}<MediaPicker label="头像图片地址" value={settings.avatarUrl} onChange={value => field('avatarUrl', value)} onBusyChange={onMediaBusyChange} />{input('版权署名', 'copyright')}
+        <div className="field"><span>其他社交入口</span>{settings.socialLinks.map((link, index) => <div className="social-editor" key={index}>
+          <input aria-label={'社交名称 ' + (index + 1)} value={link.label} placeholder="QQ / 个人主页" onChange={event => field('socialLinks', settings.socialLinks.map((value, idx) => idx === index ? { ...value, label: event.target.value } : value))} />
+          <input aria-label={'社交地址 ' + (index + 1)} value={link.url} placeholder="https://…" onChange={event => field('socialLinks', settings.socialLinks.map((value, idx) => idx === index ? { ...value, url: event.target.value } : value))} />
+          <button type="button" className="text-action destructive" onClick={() => field('socialLinks', settings.socialLinks.filter((_, idx) => idx !== index))}>移除</button>
+        </div>)}<button type="button" className="action-secondary" disabled={settings.socialLinks.length >= 12} onClick={() => field('socialLinks', [...settings.socialLinks, { label: '', url: '' }])}>添加社交入口</button></div>
       </div></section><div className="studio-form-bottom"><span className="draft-indicator">{settingsDirty ? '有未保存的修改' : ''}</span>
         <button type="button" className="action-primary" onClick={() => void saveSite()}>{busy ? '保存中…' : '保存站点资料'}</button></div>
     </fieldset>}
-    {tab === 'seo' && <fieldset className="studio-fieldset studio-grid-two" disabled={busy}>
+    {tab === 'home' && <>
+      <fieldset className="studio-fieldset" disabled={locked}><section className="studio-card"><div className="card-heading"><div><h2>首页编排</h2><p>模块顺序由模块管理控制，保存后访客立即看到新内容。</p></div><button type="button" className="action-secondary" onClick={() => setPreview(!preview)}>{preview ? '收起首页预览' : '显示首页预览'}</button></div>
+        <div className="form-columns"><label className="field"><span>首页项目数量</span><input type="number" min={1} max={24} value={settings.homeProjectsLimit} onChange={event => field('homeProjectsLimit', Number(event.target.value))} /></label>
+          <label className="field"><span>项目展示样式</span><select value={settings.homeLayout} onChange={event => field('homeLayout', event.target.value as HubSettings['homeLayout'])}><option value="cards">卡片</option><option value="compact">紧凑</option></select></label>
+          <label className="check-choice"><input type="checkbox" checked={settings.homeShowUpdates} onChange={event => field('homeShowUpdates', event.target.checked)} />显示最近动态</label></div>
+        <section className="home-section"><h3>工具中心内容</h3><div className="form-stack">{input('密码工具名称', 'passwordToolTitle')}{input('密码工具说明', 'passwordToolDescription')}</div></section>
+        <div className="form-actions"><button type="button" className="action-secondary" onClick={() => changeTab('modules')}>调整模块顺序与启停</button><button type="button" className="action-primary" onClick={() => void saveSite()}>保存首页设置</button></div>
+      </section></fieldset>
+      {preview && <section className="studio-card"><div className="card-heading"><h2>首页预览</h2><button type="button" className="action-secondary" onClick={() => setPhonePreview(!phonePreview)}>{phonePreview ? '桌面预览' : '手机预览'}</button></div><p>预览显示已经保存的公开首页。保存修改后刷新预览。</p><div className={'home-preview ' + (phonePreview ? 'phone-preview' : '')}><iframe key={JSON.stringify(savedSettings) + JSON.stringify(modules)} title="首页预览" src="/" /></div></section>}
+    </>}
+    {tab === 'seo' && <fieldset className="studio-fieldset studio-grid-two" disabled={locked}>
       <section className="studio-card"><h2>SEO 基础设置</h2><div className="form-stack">{input('首页搜索标题', 'seoTitle')}
         <label className="field"><span>首页描述</span><textarea rows={4} value={settings.seoDescription} onChange={event => field('seoDescription', event.target.value)} /></label>
         <label className="check-choice"><input type="checkbox" checked={settings.seoIndexable} onChange={event => field('seoIndexable', event.target.checked)} />允许公开页面收录</label>
@@ -227,15 +262,15 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
     {tab === 'modules' && <section className="studio-card"><div className="card-heading"><div><h2>模块管理</h2><p>启停公开模块，并调整它们的展示顺序。</p></div></div>
       <div className="module-list">{modules.map((module, index) => <div className="module-row" key={module.id}><div><strong>{module.name}</strong>
         <small>{module.summary} · 阶段 P{module.stage}</small></div><div className="module-actions">
-        <button type="button" className="mini-arrow" disabled={busy || index === 0} onClick={() => void moveModule(index, -1)} aria-label={'上移 ' + module.name}>↑</button>
-        <button type="button" className="mini-arrow" disabled={busy || index === modules.length - 1} onClick={() => void moveModule(index, 1)} aria-label={'下移 ' + module.name}>↓</button>
-        <label className="check-choice"><input type="checkbox" disabled={busy || !module.available} checked={module.enabled} onChange={() => void toggleModule(module)} />
+        <button type="button" className="mini-arrow" disabled={locked || index === 0} onClick={() => void moveModule(index, -1)} aria-label={'上移 ' + module.name}>↑</button>
+        <button type="button" className="mini-arrow" disabled={locked || index === modules.length - 1} onClick={() => void moveModule(index, 1)} aria-label={'下移 ' + module.name}>↓</button>
+        <label className="check-choice"><input type="checkbox" disabled={locked || !module.available} checked={module.enabled} onChange={() => void toggleModule(module)} />
           <span>{module.available ? (module.enabled ? '开启' : '关闭') : '待开发'}</span></label>
       </div></div>)}</div></section>}
     {tab === 'system' && <div className="studio-grid-two"><section className="studio-card"><h2>当前开发状态</h2>
       <div className="placeholder-stack">主站内容与独立管理员后台</div><div className="placeholder-stack">数据：SQLite / WAL</div>
       <div className="placeholder-stack">账号、积分与游戏：后续阶段</div></section>
       <section className="studio-card"><h2>发布与备份</h2><p>上线前还需补齐媒体管理、备份恢复与旧站迁移验收。</p>
-        <a className="subtle-link" href="/api/health" target="_blank" rel="noopener noreferrer">查看健康检查 ↗</a></section></div>}
+        <a className="subtle-link" href="/api/health" target="_blank" rel="noopener noreferrer">查看健康检查 ↗</a></section><MediaPanel /><BackupPanel /></div>}
   </main></div>
 }

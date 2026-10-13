@@ -8,6 +8,7 @@
     "start": "next start -H 127.0.0.1 -p 1026",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
+    "test:backup": "node --test tests/backup-format.test.mjs",
     "check:structural": "node scripts/verify.mjs"
   },
   "dependencies": {
@@ -15,7 +16,8 @@
     "next": "16.2.12",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "react-markdown": "10.1.0"
+    "react-markdown": "10.1.0",
+    "sharp": "0.34.5"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0",

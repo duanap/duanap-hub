@@ -1,6 +1,7 @@
 export type ProjectCategory = 'website' | 'game' | 'tool' | 'other'
 export type ProjectStatus = 'development' | 'online' | 'maintenance' | 'paused' | 'archived'
 export type EntryType = 'changelog' | 'preview' | 'notice' | 'roadmap' | 'rules'
+export type RoadmapStatus = 'idea' | 'planned' | 'in-progress' | 'done' | 'paused'
 
 export type HubSettings = {
   siteName: string
@@ -18,6 +19,12 @@ export type HubSettings = {
   policeNumber: string
   policeUrl: string
   copyright: string
+  homeProjectsLimit: number
+  homeShowUpdates: boolean
+  homeLayout: 'cards' | 'compact'
+  socialLinks: { label: string; url: string }[]
+  passwordToolTitle: string
+  passwordToolDescription: string
 }
 
 export type ModuleId = 'about' | 'projects' | 'games' | 'tools' | 'content' | 'accounts' | 'edgeone'
@@ -43,6 +50,12 @@ export type Project = {
   externalUrl: string
   repositoryUrl: string
   coverUrl: string
+  iconUrl: string
+  groupName: string
+  tags: string[]
+  screenshots: string[]
+  versionDate: string
+  sortOrder: number
   featured: boolean
   published: boolean
   seoTitle: string
@@ -58,6 +71,9 @@ export type ProjectEntry = {
   body: string
   published: boolean
   publishedAt: string | null
+  roadmapStatus: RoadmapStatus
+  version: string
+  effectiveAt: string
   createdAt: string
   updatedAt: string
 }
@@ -76,4 +92,7 @@ export const ENTRY_LABELS: Record<EntryType, string> = {
   notice: '维护公告',
   roadmap: '开发路线图',
   rules: '玩法与说明'
+}
+export const ROADMAP_LABELS: Record<RoadmapStatus, string> = {
+  idea: '想法', planned: '计划中', 'in-progress': '开发中', done: '已完成', paused: '搁置',
 }

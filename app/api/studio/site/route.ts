@@ -3,9 +3,10 @@ import { guardAdminMutation } from '@/lib/admin-auth'
 import { apiError, parseJson } from '@/lib/api'
 import { updateSiteSettings } from '@/lib/db'
 import { validateSettingsPatch } from '@/lib/config'
+import { withDataLock } from '@/lib/storage'
 export const runtime='nodejs'
 export async function PUT(request:Request){
   const deny=await guardAdminMutation(request);if(deny)return deny
-  try{return NextResponse.json({settings:updateSiteSettings(validateSettingsPatch(await parseJson(request,20_000)))})}
+  try{const payload = validateSettingsPatch(await parseJson(request,50_000));return await withDataLock(async () => NextResponse.json({settings:updateSiteSettings(payload)}))}
   catch(e){return apiError(e)}
 }

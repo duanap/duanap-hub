@@ -1,12 +1,12 @@
 # duanap Hub
 
-> 一个小而美、可持续扩展的个人数字门户。**独立新项目 · 开发起点 v0.1.0**。
+> 一个小而美、可持续扩展的个人数字门户。**独立新项目 · P1 本地验收版**。
 
 `duanap.cn` 是个人品牌与作品的主要入口：个人介绍、项目/游戏介绍、手动维护的版本和公告、在线工具、SEO 与 RSS，以及轻量卡片化管理后台 `duanap Studio`。
 
 ## 开发状态与承诺边界
 
-本仓库当前处于 **第一阶段增量开发**，不是现有生产主站的替换包，也不是三个阶段的完成版。已在初始骨架上完善 Studio 项目搜索筛选、全宽编辑、Markdown 预览、未保存提醒与保存保护。上线前还须完成 `docs/ACCEPTANCE.md` 的全部门槛及生产数据迁移。
+本仓库已完成 **P1 主站本地验收批次**：项目运营、媒体管理、首页编排、Studio 编辑体验、SEO、基础工具和备份恢复。2026-10-13 在生产构建与服务器外部请求被阻断的条件下，26 项浏览器/API 用例通过；另有 6 项备份恢复用例通过。尚未部署或替换现有生产站点；正式上线仍需核实部署环境、生产备份、缓存和历史 URL。旧站数据导入是独立经批准的任务。
 
 第二阶段接入 `blog.duanap.cn` 的 WordPress/子比用户与积分；第三阶段逐个接入游戏、QQ 机器人、博客文章及 EdgeOne/GitHub 数据。上述扩展服务在第一阶段**不是运行依赖**。
 
@@ -53,10 +53,11 @@ npm run dev
 npm run typecheck
 npm run build
 npm run check:structural
+npm run test:backup
 npm test
 ```
 
-2026-10-13 已通过依赖安装、类型检查、结构检查和生产构建；Studio 本批 12 项生产模式浏览器用例通过。完整 P1 上线验收仍待完成，详见 `docs/DEVELOPMENT-STATUS.md`。
+本地验证与尚未完成的生产门槛分别记录在 [实际完成状态](docs/DEVELOPMENT-STATUS.md) 和 [验收清单](docs/ACCEPTANCE.md)。
 
 浏览器测试在端口 1027 启动独立实例，自动生成临时管理员凭据和 `.tmp/` 下的独立数据库，不读取开发或生产数据。Windows 默认使用已安装的 Microsoft Edge；其他平台先运行 `npx playwright install chromium`。可用 `HUB_TEST_BROWSER_CHANNEL` 指定其他已安装的 Chromium 浏览器通道。
 
@@ -64,9 +65,21 @@ npm test
 
 ```powershell
 $env:HUB_TEST_SERVER_MODE = 'production'
+$env:HUB_TEST_OFFLINE = '1'
 npm test
 Remove-Item Env:HUB_TEST_SERVER_MODE
+Remove-Item Env:HUB_TEST_OFFLINE
 ```
+
+`HUB_TEST_OFFLINE=1` 让测试服务拒绝非回环地址的服务器 `fetch` 请求，用于验证 Core 不依赖第三方服务；该开关只用于测试。
+
+## 内容与备份
+
+Studio 可上传头像、项目封面/图标/截图，并管理项目分组、标签、版本日期、公告排期和路线图状态。首页项目数量、布局、动态、模块顺序和社交入口均可编辑。支持侧栏折叠、明暗主题，以及已经保存内容的桌面/手机首页预览。
+
+图片上传接受最多 5 MiB 的 PNG/JPEG/WebP/GIF，解码后转为 WebP；GIF 使用首帧。持久化文件位于 `HUB_DATA_DIR`，不进入 Git。一个数据目录只允许一个应用进程。
+
+后台「系统信息」可创建与下载数据库/媒体备份；恢复通过停止应用后的 CLI 执行，包含校验、维护锁和回滚副本。详见 [备份与恢复](docs/BACKUP-RESTORE.md)。
 
 ## 独立 GitHub 仓库
 
@@ -93,6 +106,7 @@ Set-Location duanap-hub
 6. [本地、宝塔部署和迁移](docs/DEPLOYMENT.md)
 7. [验收清单](docs/ACCEPTANCE.md)
 8. [实际完成状态和待验证事项](docs/DEVELOPMENT-STATUS.md)
+9. [旧站源码核查与迁移准备](docs/MIGRATION-AUDIT.md)
 
 ## 旧项目边界
 

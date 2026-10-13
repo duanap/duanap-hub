@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { getModules, getSiteSettings, isEnabled } from '@/lib/db'
+import { ThemeControl } from '@/components/ThemeControl'
 
 export function PublicShell({ children }: { children: ReactNode }) {
   const site = getSiteSettings()
@@ -21,6 +22,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
       <Link href="/" className="site-brand"><span className="brand-icon">d.</span><span>{site.siteName}</span></Link>
       <nav aria-label="主导航" className="site-nav">
         {sorted.filter(link=>link.enabled).map(link=><Link href={link.path} key={link.path}>{link.label}</Link>)}
+        <ThemeControl />
       </nav>
     </header>
     <main id="main-content" className="site-main">{children}</main>
