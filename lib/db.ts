@@ -5,7 +5,10 @@ import { DEFAULT_SETTINGS, validateSettingsPatch } from '@/lib/config'
 import { REGISTERED_MODULES, isModuleId } from '@/lib/modules'
 import type { EntryType, HubSettings, ModuleId, ModuleState, Project, ProjectCategory, ProjectEntry, ProjectStatus } from '@/lib/types'
 
-const folder = path.resolve(process.env.HUB_DATA_DIR || path.join(process.cwd(), 'data'))
+// The configured data directory is a runtime resource, not a build input.
+const folder = process.env.HUB_DATA_DIR
+  ? path.resolve(/* turbopackIgnore: true */ process.env.HUB_DATA_DIR)
+  : path.join(process.cwd(), 'data')
 let singleton: Database.Database | null = null
 
 export function getDatabase() {

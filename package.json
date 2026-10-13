@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start -H 127.0.0.1 -p 1026",
     "typecheck": "tsc --noEmit",
+    "test": "playwright test",
     "check:structural": "node scripts/verify.mjs"
   },
   "dependencies": {
@@ -17,8 +18,9 @@
     "react-markdown": "10.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.0",
     "@types/better-sqlite3": "7.6.13",
-    "@types/node": "22.0.0",
+    "@types/node": "22.20.5",
     "@types/react": "19.2.0",
     "@types/react-dom": "19.2.0",
     "typescript": "5.9.2"

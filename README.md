@@ -6,7 +6,7 @@
 
 ## 开发状态与承诺边界
 
-本仓库当前是 **第一阶段开发骨架**，不是现有生产主站的替换包，也不是三个阶段的完成版。包含最小公开页面、SQLite 内容模型、模块启停骨架、独立后台基础身份、项目与公告编辑 API、SEO 及 RSS 示例。**仅为新项目开发基线**，上线前还须完成 `docs/ACCEPTANCE.md` 的验收及生产数据迁移。
+本仓库当前处于 **第一阶段增量开发**，不是现有生产主站的替换包，也不是三个阶段的完成版。已在初始骨架上完善 Studio 项目搜索筛选、全宽编辑、Markdown 预览、未保存提醒与保存保护。上线前还须完成 `docs/ACCEPTANCE.md` 的全部门槛及生产数据迁移。
 
 第二阶段接入 `blog.duanap.cn` 的 WordPress/子比用户与积分；第三阶段逐个接入游戏、QQ 机器人、博客文章及 EdgeOne/GitHub 数据。上述扩展服务在第一阶段**不是运行依赖**。
 
@@ -34,7 +34,7 @@
 
 ```powershell
 Copy-Item .env.example .env.local
-npm install
+npm ci
 node scripts/hash-password.mjs
 npm run dev
 ```
@@ -53,9 +53,20 @@ npm run dev
 npm run typecheck
 npm run build
 npm run check:structural
+npm test
 ```
 
-2026-10-10 本机已通过关键文件结构检查和密码脚本语法检查；未安装 TypeScript 时，结构检查会明确跳过 AST 解析。依赖安装、类型检查、Next.js 构建与浏览器验收仍待完成，验证通过后再上线。
+2026-10-13 已通过依赖安装、类型检查、结构检查和生产构建；Studio 本批 12 项生产模式浏览器用例通过。完整 P1 上线验收仍待完成，详见 `docs/DEVELOPMENT-STATUS.md`。
+
+浏览器测试在端口 1027 启动独立实例，自动生成临时管理员凭据和 `.tmp/` 下的独立数据库，不读取开发或生产数据。Windows 默认使用已安装的 Microsoft Edge；其他平台先运行 `npx playwright install chromium`。可用 `HUB_TEST_BROWSER_CHANNEL` 指定其他已安装的 Chromium 浏览器通道。
+
+测试生产构建（先执行 `npm run build`）在 PowerShell 中使用：
+
+```powershell
+$env:HUB_TEST_SERVER_MODE = 'production'
+npm test
+Remove-Item Env:HUB_TEST_SERVER_MODE
+```
 
 ## 独立 GitHub 仓库
 

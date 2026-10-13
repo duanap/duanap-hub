@@ -5,7 +5,7 @@
 - [x] 新项目完全独立于旧生产仓库，Git 私有目录与忽略规则已配置。
 - [x] P1/P2/P3 范围明确，第三方 API 不是 P1 启动依赖。
 - [x] 目录/环境变量与 README 一致，包含模块注册、公开页面、Studio 骨架、SQLite 模型、robots/sitemap/feed。
-- [ ] 在联网开发环境中 `npm install`、`npm run typecheck`、`npm run build` 均成功。
+- [x] 在联网开发环境中 `npm install`、`npm run typecheck`、`npm run build` 均成功（2026-10-13）。
 - [ ] 浏览器/移动端与管理员真实操作测试通过。
 
 ## B. P1 上线门槛
