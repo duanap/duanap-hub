@@ -39,7 +39,7 @@ node scripts/hash-password.mjs
 npm run dev
 ```
 
-将密码脚本生成的 `scrypt$...` 字符串复制到 `.env.local` 的 `HUB_ADMIN_PASSWORD_HASH`；密码至少 12 位。然后打开：
+将密码脚本生成的整行复制到 `.env.local`；其中美元符号已经转义，复制时保留反斜杠，避免 Next.js 环境变量展开破坏哈希。密码至少 12 位。然后打开：
 
 - 主站：<http://127.0.0.1:1026/>
 - 后台：<http://127.0.0.1:1026/duanap/login>
@@ -54,6 +54,7 @@ npm run typecheck
 npm run build
 npm run check:structural
 npm run test:backup
+npm run test:env
 npm test
 ```
 

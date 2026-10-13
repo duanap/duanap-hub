@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
     "test:backup": "node --test tests/backup-format.test.mjs",
+    "test:env": "node --test tests/admin-env.test.mjs",
     "check:structural": "node scripts/verify.mjs"
   },
   "dependencies": {
