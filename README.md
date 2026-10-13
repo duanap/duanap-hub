@@ -1,12 +1,14 @@
 # duanap Hub
 
-> 一个小而美、可持续扩展的个人数字门户。**独立新项目 · P1 本地验收版**。
+> 一个小而美、可持续扩展的个人数字门户。**独立新项目 · P1 已部署（全新数据）**。
 
 `duanap.cn` 是个人品牌与作品的主要入口：个人介绍、项目/游戏介绍、手动维护的版本和公告、在线工具、SEO 与 RSS，以及轻量卡片化管理后台 `duanap Studio`。
 
 ## 开发状态与承诺边界
 
-本仓库已完成 **P1 主站本地验收批次**：项目运营、媒体管理、首页编排、Studio 编辑体验、SEO、基础工具和备份恢复。2026-10-13 在生产构建与服务器外部请求被阻断的条件下，26 项浏览器/API 用例通过；另有 6 项备份恢复用例通过。尚未部署或替换现有生产站点；正式上线仍需核实部署环境、生产备份、缓存和历史 URL。旧站数据导入是独立经批准的任务。
+本仓库已完成 **P1 主站本地验收与主域部署**：项目运营、媒体管理、首页编排、Studio 编辑体验、SEO、基础工具和备份恢复。2026-10-13 在生产构建与服务器外部请求被阻断的条件下，26 项浏览器/API 用例通过；另有 6 项备份恢复和 1 项密码环境回归用例通过。按用户选择使用全新数据目录部署，保留原发布和数据供回滚；旧项目未导入。
+
+主站：[duanap.cn](https://duanap.cn/)；[www.duanap.cn](https://www.duanap.cn/) 跳转主域；后台：[Studio 登录](https://duanap.cn/duanap/login)。服务器构建、真实备份恢复、HTTPS、私有缓存头和 EdgeOne 静态缓存均已验证，见 [部署记录](docs/DEPLOYMENT-2026-10-13.md)。管理员沿用原账号和密码。
 
 第二阶段接入 `blog.duanap.cn` 的 WordPress/子比用户与积分；第三阶段逐个接入游戏、QQ 机器人、博客文章及 EdgeOne/GitHub 数据。上述扩展服务在第一阶段**不是运行依赖**。
 
@@ -22,7 +24,7 @@
 
 ## 技术选择
 
-- Next.js 16 App Router / React 19 / TypeScript；Node.js 22。
+- Next.js 16 App Router / React 19 / TypeScript；Node.js 22+。
 - 主站独立 SQLite（`better-sqlite3`）；WordPress 仍维持 MySQL/MariaDB。
 - 自定义 CSS 组件，轻量卡片式后台，不引入大型 UI 系统。
 - 宝塔 + Nginx + EdgeOne；**无 Docker、无强制 CI/GitHub Actions**。
