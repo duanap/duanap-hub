@@ -6,7 +6,7 @@
 - [x] P1/P2/P3 范围明确，第三方 API 不是 P1 启动依赖。
 - [x] 目录/环境变量与 README 一致，包含模块注册、公开页面、Studio 骨架、SQLite 模型、robots/sitemap/feed。
 - [x] 在联网开发环境中 `npm install`、`npm run typecheck`、`npm run build` 均成功（2026-10-13）。
-- [x] 本地生产构建浏览器/移动端与管理员真实操作测试通过（2026-10-13，26 项）。
+- [x] 本地生产构建浏览器/移动端与管理员真实操作测试通过（2026-10-14，35 项，含 9 项 Markdown 编辑回归）。
 
 ## B. P1 上线门槛
 

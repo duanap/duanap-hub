@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import ReactMarkdown from 'react-markdown'
+import { Markdown } from '@/components/Markdown'
 import type { Metadata } from 'next'
 import { ProjectCard } from '@/components/ProjectCard'
 import { PublicShell } from '@/components/PublicShell'
@@ -40,7 +40,7 @@ export default function HomePage() {
     {modules.map(module => {
       if (module.id === 'about') return <section className="home-section" data-module="about" key="about">
         <div className="section-title"><div><span className="eyebrow">ABOUT ME</span><h2>关于我</h2></div><Link className="subtle-link" href="/about">完整介绍 ↗</Link></div>
-        <div className="content-card markdown"><ReactMarkdown>{site.biography}</ReactMarkdown></div>
+        <div className="content-card markdown"><Markdown>{site.biography}</Markdown></div>
       </section>
       if (module.id === 'projects') return <section className="home-section" data-module="projects" key="projects">
         <div className="section-title"><div><span className="eyebrow">SELECTED WORK</span><h2>项目与作品</h2></div><Link href="/projects" className="subtle-link">查看全部 ↗</Link></div>

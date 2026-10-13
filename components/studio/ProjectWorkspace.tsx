@@ -135,7 +135,7 @@ export function ProjectWorkspace(props: Props) {
               <MediaPicker key={'cover-' + activeProjectId} label="封面图片地址" value={draft.coverUrl} onChange={coverUrl => onProjectChange({ coverUrl })} onBusyChange={onMediaBusyChange} />
               {textField('在线地址', 'externalUrl', 'https://…')}{textField('仓库地址', 'repositoryUrl', 'https://github.com/…')}
               <label className="field span-two"><span>项目摘要</span><textarea rows={2} maxLength={1200} value={draft.summary} onChange={event => onProjectChange({ summary: event.target.value })} /></label>
-              <MarkdownEditor key={`project-${activeProjectId}`} label="项目介绍（Markdown）" name="项目正文" value={draft.body} onChange={body => onProjectChange({ body })} />
+              <MarkdownEditor key={`project-${activeProjectId}`} label="项目介绍（Markdown）" name="项目正文" value={draft.body} disabled={busy} onChange={body => onProjectChange({ body })} />
               <div className="span-two"><div className="card-heading"><h3>项目截图</h3><button type="button" className="action-secondary" disabled={draft.screenshots.length >= 20} onClick={() => onProjectChange({ screenshots: [...draft.screenshots, ''] })}>添加截图</button></div>
                 <div className="form-columns">{draft.screenshots.map((url, index) => <div key={index}><MediaPicker label={'截图 ' + (index + 1)} value={url} onChange={next => onProjectChange({ screenshots: draft.screenshots.map((value, idx) => idx === index ? next : value) })} onBusyChange={onMediaBusyChange} />
                   <button type="button" className="text-action destructive" onClick={() => onProjectChange({ screenshots: draft.screenshots.filter((_, idx) => idx !== index) })}>移除截图</button></div>)}</div>
@@ -170,7 +170,7 @@ export function ProjectWorkspace(props: Props) {
               {Object.entries(ROADMAP_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select></label>
             <label className="field span-two"><span>生效时间（UTC，可留空立即发布）</span><input value={entryDraft.effectiveAt} placeholder="2026-10-13T12:00:00.000Z" onChange={event => onEntryChange({ effectiveAt: event.target.value })} /></label>
-            <MarkdownEditor key={`entry-${activeEntryId}`} label="正文（Markdown）" name="公告正文" value={entryDraft.body} onChange={body => onEntryChange({ body })} />
+            <MarkdownEditor key={`entry-${activeEntryId}`} label="正文（Markdown）" name="公告正文" value={entryDraft.body} disabled={busy} onChange={body => onEntryChange({ body })} />
           </div><div className="form-actions">
             <label className="check-choice"><input type="checkbox" checked={entryDraft.published} onChange={event => onEntryChange({ published: event.target.checked })} />公开发布</label>
             <button className="action-primary" type="submit">{activeEntryId ? '更新记录' : '新增记录'}</button>

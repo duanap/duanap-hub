@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
 import type { Metadata } from 'next'
-import ReactMarkdown from 'react-markdown'
+import { Markdown } from '@/components/Markdown'
 import { PublicShell } from '@/components/PublicShell'
 import { getProjectBySlug, getProjectByAlias, getProjectEntries, isEnabled } from '@/lib/db'
 import { pageMetadata, safeJsonLd } from '@/lib/seo'
@@ -30,10 +30,10 @@ export default async function ProjectDetail({params}:Props){
     </div>
     {p.coverUrl && <img className="project-detail-cover" src={p.coverUrl} alt={p.title + '封面'} />}
     {p.status==='maintenance'&&<div className="maintenance-note">项目正在维护或升级，最新安排请以以下公告为准。</div>}
-    {p.body&&<article className="content-card markdown"><h2>项目介绍</h2><ReactMarkdown>{p.body}</ReactMarkdown></article>}
+    {p.body&&<article className="content-card markdown"><h2>项目介绍</h2><Markdown>{p.body}</Markdown></article>}
     {p.screenshots.length > 0 && <section className="home-section"><h2>项目截图</h2><div className="project-screenshots">{p.screenshots.map((url, index) => <a href={url} key={url} target="_blank" rel="noopener noreferrer"><img src={url} alt={p.title + ' 截图 ' + (index + 1)} loading="lazy" /></a>)}</div></section>}
     {!!entries.length&&<section className="home-section"><div className="section-title"><div><span className="eyebrow">UPDATES</span><h2>更新与计划</h2></div></div>
-      <div className="entry-timeline">{entries.map(e=><article key={e.id} id={`update-${e.id}`} className="content-card entry-card"><div className="entry-meta"><span>{ENTRY_LABELS[e.type]}</span>{e.version && <span>{e.version}</span>}{e.type === 'roadmap' && <span>{ROADMAP_LABELS[e.roadmapStatus]}</span>}<time>{e.publishedAt?.slice(0,10)||''}</time></div><h3>{e.title}</h3><div className="markdown"><ReactMarkdown>{e.body}</ReactMarkdown></div></article>)}</div>
+      <div className="entry-timeline">{entries.map(e=><article key={e.id} id={`update-${e.id}`} className="content-card entry-card"><div className="entry-meta"><span>{ENTRY_LABELS[e.type]}</span>{e.version && <span>{e.version}</span>}{e.type === 'roadmap' && <span>{ROADMAP_LABELS[e.roadmapStatus]}</span>}<time>{e.publishedAt?.slice(0,10)||''}</time></div><h3>{e.title}</h3><div className="markdown"><Markdown>{e.body}</Markdown></div></article>)}</div>
     </section>}
   </PublicShell>
 }
