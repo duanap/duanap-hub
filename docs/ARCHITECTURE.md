@@ -15,7 +15,7 @@ Core 拥有：公开首页与独立内容路由、duanap Studio、管理员独�
 - `games`：从 `projects` 中筛选游戏类别；P3 才接战绩与角色服务。
 - `tools`：工具目录及逐个启用的独立工具；密码生成在浏览器本地执行。
 - `content`：P3 才接 WordPress 文章摘要；未配置不触发请求。
-- `accounts`：P2 通过受保护的 WordPress 身份 API/OIDC，浏览器不获得服务端高权限凭据。
+- `accounts`：P2 优先免费 WordPress OAuth2 + S256 PKCE + Bridge 本人 API，浏览器不获得上游令牌；候选隔离验证见 `P2-COMPATIBILITY.md`，正式启用仍待联调。
 - `edgeone`：P3 服务端读 API，设置超时和带时间戳的缓存。
 - `bot`：P3 独立 QQ Bot 进程，只有绑定身份和业务 API，不直接写 WordPress 或游戏数据库。
 
