@@ -96,3 +96,13 @@ test('restore refuses a live application and corrupt archive without changing th
   assert.notEqual(result.status, 0)
   assert.deepEqual(readFileSync(path.join(target, 'hub.sqlite')), original)
 })
+
+test('offline content restore invalidates separate account sessions and auth transactions',()=>{
+  const folder=mkdtempSync(path.join(os.tmpdir(),'hub-accounts-restore-')),target=path.join(folder,'data');mkdirSync(target)
+  writeFileSync(path.join(target,'hub.sqlite'),database('原作品'))
+  for(const suffix of ['','-wal','-shm'])writeFileSync(path.join(target,'accounts.sqlite'+suffix),'private synthetic session data')
+  const input=path.join(folder,'backup.hub.gz');writeFileSync(input,encodeBackup(database(),[]))
+  const result=spawnSync(process.execPath,['scripts/restore-backup.mjs','--input',input,'--data-dir',target,'--confirm-restore'],{encoding:'utf8'})
+  assert.equal(result.status,0,result.stderr)
+  for(const suffix of ['','-wal','-shm'])assert.equal(existsSync(path.join(target,'accounts.sqlite'+suffix)),false,'old local auth data must not survive content restore')
+})

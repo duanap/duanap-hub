@@ -53,7 +53,7 @@ try {
     if (readFileSync(runtime, 'utf8') !== previous) throw new Error('运行锁已变化')
     unlinkSync(runtime)
   }
-  for (const name of ['hub.sqlite', 'hub.sqlite-wal', 'hub.sqlite-shm', 'media', 'backups']) regular(within(name))
+  for (const name of ['hub.sqlite', 'hub.sqlite-wal', 'hub.sqlite-shm', 'accounts.sqlite', 'accounts.sqlite-wal', 'accounts.sqlite-shm', 'media', 'backups']) regular(within(name))
   staging = within('.restore-' + randomUUID()); rollback = within('rollback-' + randomUUID())
   mkdirSync(staging, { mode: 0o700 }); mkdirSync(path.join(staging, 'media'))
   writeFileSync(path.join(staging, 'hub.sqlite'), backup.database, { mode: 0o600 })
@@ -78,6 +78,9 @@ try {
     writeFileSync(path.join(rollback, 'rollback.hub.gz'), encodeBackup(readFileSync(path.join(rollback, 'hub.sqlite')), media), { flag: 'wx', mode: 0o600 })
   }
   const moved = [], installed = []
+  // Local OAuth credentials never enter a content archive or survive restore/rollback.
+  // The runtime lease above guarantees all SQLite connections are stopped first.
+  for (const name of ['accounts.sqlite','accounts.sqlite-wal','accounts.sqlite-shm']) if (existsSync(within(name))) unlinkSync(within(name))
   try {
     safeToRelease = false
     for (const name of ['hub.sqlite', 'hub.sqlite-wal', 'hub.sqlite-shm', 'media']) {

@@ -19,7 +19,7 @@ define('DUANAP_HUB_CLIENT_ID', 'YOUR_DEDICATED_CLIENT_ID');
 define('DUANAP_HUB_REDIRECT_URI', 'https://YOUR_HUB_HOST/api/auth/callback');
 ```
 
-这是未来 Hub 回调示例；本批没有实现主站回调页面。Provider 客户端必须配置同一个精确回调、`authorization_code` grant 和 `basic` scope。客户端密钥留在 Provider 和未来 Hub 的私有服务器配置中，本插件不增加共享管理员密码。
+Hub 的回调已在 P2-2 隔离候选实现，正式启用仍须联调。Provider 客户端必须配置同一个精确回调、`authorization_code` grant 和 `basic` scope。客户端密钥留在 Provider 和 Hub 的私有服务器配置中，本插件不增加共享管理员密码。配置与当前客户端验证见 [P2-2 记录](../../../docs/P2-ACCOUNTS-2026-10-14.md)。
 
 激活仅建立插件专用 UID 表并保存非敏感客户端 ID，不创建会员或改余额。已有用户第一次通过本人读取请求时补齐 UID。保存的客户端 ID 使配置被误删时仍能拒绝该 Hub 客户端请求；其他 OAuth 客户端继续由原 Provider 处理。更换专用客户端应停用旧客户端、撤销旧令牌并重新激活 Bridge 更新记录。
 

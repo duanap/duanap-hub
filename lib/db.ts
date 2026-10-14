@@ -123,9 +123,13 @@ export function setModuleEnabled(id: string, enabled: boolean) {
   const definition = REGISTERED_MODULES.find(m => m.id === id)!
   if (!definition.available && enabled) throw new Error('该模块尚未实现，暂无法启用')
   const current = getModules().find(m => m.id === id)!
+  const last = getDatabase().prepare('SELECT updated_at FROM module_settings WHERE id=?').get(id) as {updated_at:string}|undefined
+  // Keep lifecycle generations distinct even if disable/re-enable share one millisecond.
+  const previous = last ? Date.parse(last.updated_at) : 0
+  const changedAt = new Date(Math.max(Date.now(), (Number.isFinite(previous) ? previous : 0) + 1)).toISOString()
   getDatabase().prepare(`INSERT INTO module_settings (id, enabled, sort_order, updated_at)
     VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET enabled=excluded.enabled, updated_at=excluded.updated_at`)
-    .run(id, enabled ? 1 : 0, current.sortOrder, new Date().toISOString())
+    .run(id, enabled ? 1 : 0, current.sortOrder, changedAt)
   return getModules()
 }
 export function reorderModules(ids: string[]) {
@@ -137,7 +141,7 @@ export function reorderModules(ids: string[]) {
     ids.forEach((id, idx)=> {
       const old = getModules().find(m=>m.id===id)!
       db.prepare(`INSERT INTO module_settings (id, enabled, sort_order, updated_at)
-        VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET sort_order=excluded.sort_order, updated_at=excluded.updated_at`)
+        VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET sort_order=excluded.sort_order`)
         .run(id, old.enabled?1:0,idx,now)
     })
   })()
