@@ -1,5 +1,6 @@
 'use client'
 import { useCallback,useEffect,useRef,useState } from 'react'
+import Link from 'next/link'
 import type { AccountIdentity,Points,Checkin,History } from '@/lib/accounts/wordpress'
 type Session={id:string;createdAt:number;expiresAt:number;current:boolean}
 type Profile={user:AccountIdentity;csrfToken:string;expiresAt:number;blogUrl:string}
@@ -52,6 +53,7 @@ export function AccountCenter(){
       <div className="account-card"><h2>近期积分流水</h2>{view.history?<><div className="account-table-wrap"><table><thead><tr><th>时间</th><th>原因</th><th>变化</th><th>余额</th></tr></thead><tbody>{view.history.items.map((item,index)=><tr key={index}><td>{new Date(item.occurredAt).toLocaleString('zh-CN')}</td><td>{item.reason}</td><td>{item.delta>0?'+':''}{item.delta}</td><td>{item.balanceAfter}</td></tr>)}</tbody></table></div><p className="muted">博客最多保留最近 {view.history.retentionLimit} 条记录，此处展示 {view.history.items.length} 条。</p></>:<p>暂未取得流水</p>}</div>
       <div className="account-card"><h2>主站会话</h2>{view.sessions?.map(item=><div className="account-session" key={item.id}><span>{item.current?'当前会话':'其他会话'} · {new Date(item.createdAt*1000).toLocaleString('zh-CN')}</span><button disabled={busy} onClick={()=>void revoke(item.id)}>撤销{item.current?'当前':'此'}会话</button></div>)}</div>
     </>}
+    <p><Link href="/account/bindings">账号绑定与恢复</Link></p>
     <p className="account-privacy muted">主站只在服务器保存加密授权凭据、随机会话与必要身份信息，过期数据按请求清理，不另建积分余额。退出主站不会替你退出博客；资料修改、密码找回和第三方绑定由博客管理。</p>
   </section>
 }

@@ -3,10 +3,16 @@
 if (PHP_SAPI !== 'cli' || count($argv) < 4) exit(1);
 $root = realpath($argv[1]);
 if (!$root || !is_file($root.'/duanap-hub-fixture.marker') || trim(file_get_contents($root.'/duanap-hub-fixture.marker')) !== 'isolated') exit(1);
+$_SERVER['REMOTE_ADDR']='127.0.0.1';
 require $root.'/wp-load.php';
 if (!defined('DUANAP_HUB_TEST_FIXTURE') || !DUANAP_HUB_TEST_FIXTURE || wp_get_environment_type() !== 'development' || !str_starts_with(DB_NAME,'hub_p2_audit_')) exit(1);
 $action=$argv[2]; $id=(int)$argv[3]; $user=get_user_by('id',$id);
 if ($action==='verify') { echo json_encode(['fixture'=>true,'home'=>get_option('home')]);exit; }
+if ($action==='social-count') {
+    $code=$argv[4]??'';if(!preg_match('/\Afixture_[a-z0-9_]{1,100}\z/',$code))exit(1);
+    global $wpdb;$subject=strtoupper(md5($code));$key=duanap_hub_social_key('qq','900000001',$subject);
+    echo json_encode(['claims'=>(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}duanap_hub_social WHERE identity_key=%s AND wp_user_id IS NOT NULL",$key)),'nativeOwners'=>(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(DISTINCT user_id) FROM {$wpdb->usermeta} WHERE meta_key='oauth_qq_openid' AND BINARY meta_value=%s",$subject))]);exit;
+}
 if ($action==='create') {
     $name='bridge-test-'.wp_generate_password(12,false);
     $password=wp_generate_password(40,false);

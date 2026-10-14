@@ -3,6 +3,7 @@ export type AccountIdentity={hubUid:string;displayName:string;avatarUrl:string;a
 export type Points={balance:number;asOf:string}
 export type Checkin={businessDate:string;timezone:string;checkedIn:boolean;continuousDays:number;totalDays:number;asOf:string}
 export type History={items:{delta:number;balanceAfter:number;reason:string;occurredAt:string}[];page:number;perPage:number;totalRetained:number;retentionLimit:number;asOf:string}
+export type Bindings={providers:{provider:string;name:string;configured:boolean;linked:boolean;legacyReview:boolean}[];passwordReady:boolean;managementUrl:string;recoveryUrl:string;asOf:string}
 
 async function provider(config:AccountConfig,path:string,options:RequestInit){
   try{
@@ -53,4 +54,15 @@ export async function readHistory(config:AccountConfig,token:string,page:string,
 }
 export async function revokeWordPressToken(config:AccountConfig,token:string){
   try{await provider(config,'oauth/revoke/',{method:'POST',body:new URLSearchParams({token,token_type_hint:'access_token',client_id:config.clientId,client_secret:config.clientSecret})});return true}catch{return false}
+}
+export async function readBindings(config:AccountConfig,token:string):Promise<Bindings>{
+  const p=await provider(config,'wp-json/duanap-hub/v1/me/bindings',{headers:{Authorization:'Bearer '+token}})
+  if(!Array.isArray(p.providers)||p.providers.length!==3||typeof p.password_ready!=='boolean')throw invalid()
+  const providers=p.providers.map(raw=>{
+    if(!raw||typeof raw!=='object'||!['qq','github','gitee'].includes(raw.provider)||typeof raw.configured!=='boolean'||typeof raw.linked!=='boolean'||typeof raw.legacy_review!=='boolean')throw invalid()
+    return {provider:raw.provider,name:text(raw.name,20),configured:raw.configured,linked:raw.linked,legacyReview:raw.legacy_review}
+  })
+  if(new Set(providers.map(p=>p.provider)).size!==3)throw invalid()
+  const safeLink=(value:unknown)=>{const url=new URL(text(value,2000));if(url.origin!==config.base.origin||url.username||url.password)throw invalid();return url.href}
+  return {providers,passwordReady:p.password_ready,managementUrl:safeLink(p.management_url),recoveryUrl:safeLink(p.recovery_url),asOf:date(p.as_of)}
 }

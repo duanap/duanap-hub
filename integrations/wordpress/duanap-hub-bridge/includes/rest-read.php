@@ -2,12 +2,16 @@
 defined('ABSPATH') || exit;
 
 function duanap_hub_register_reads() {
-    foreach (['/me','/me/points','/me/checkin','/me/points/history'] as $path) register_rest_route('duanap-hub/v1', $path, ['methods'=>'GET','permission_callback'=>'duanap_hub_read_permission','callback'=>'duanap_hub_read_response']);
+    foreach (['/me','/me/points','/me/checkin','/me/points/history','/me/bindings'] as $path) register_rest_route('duanap-hub/v1', $path, ['methods'=>'GET','permission_callback'=>'duanap_hub_read_permission','callback'=>'duanap_hub_read_response']);
 }
 
 function duanap_hub_read_response($request) {
     $context = duanap_hub_context($request);
     if (!$context) return new WP_Error('hub_unauthenticated', 'Authentication required.', ['status'=>401]);
+    if($request->get_route()==='/duanap-hub/v1/me/bindings'){
+        if(!defined('DUANAP_HUB_SOCIAL_ENABLED')||DUANAP_HUB_SOCIAL_ENABLED!==true)return new WP_Error('hub_social_disabled','绑定功能未启用。',['status'=>503]);
+        return duanap_hub_social_status($context['user']->ID);
+    }
     if ($request->get_route() !== '/duanap-hub/v1/me') return duanap_hub_read_business($request);
     $user = $context['user'];
     $uid = duanap_hub_uid($user->ID);

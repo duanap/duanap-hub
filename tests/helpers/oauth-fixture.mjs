@@ -50,6 +50,7 @@ http.createServer(async(req,res)=>{
     const token=tokens.get((req.headers.authorization||'').replace(/^Bearer /,''))
     if(!token||token.expires<=Date.now())return json(res,401,{error:'invalid_token'})
     const as_of=new Date().toISOString(),isAlice=token.user==='alice'
+    if(url.pathname.endsWith('/bindings'))return json(res,200,{providers:[{provider:'qq',name:'QQ',configured:true,linked:isAlice,legacy_review:false,subject:'MUST_NOT_LEAK'},{provider:'github',name:'GitHub',configured:true,linked:!isAlice,legacy_review:false},{provider:'gitee',name:'Gitee',configured:false,linked:false,legacy_review:false}],password_ready:false,management_url:mode==='wrong-binding-origin'?'https://evil.invalid/manage':'http://127.0.0.1:1031/hub-account-bindings',recovery_url:'http://127.0.0.1:1031/wp-login.php?action=lostpassword',as_of})
     if(url.pathname.endsWith('/me'))return json(res,200,{hub_uid:mode==='wrong-identity'?users.bob:users[token.user],display_name:mode==='long-name'?'界'.repeat(250):isAlice?'Alice':'Bob',avatar_url:'',as_of,email:'MUST_NOT_LEAK',roles:['administrator']})
     if(url.pathname.endsWith('/points'))return json(res,200,{balance:mode==='invalid-data'?'broken':isAlice?100:200,as_of})
     if(url.pathname.endsWith('/checkin'))return json(res,200,{business_date:new Date().toISOString().slice(0,10),timezone:'Asia/Shanghai',checked_in:isAlice,continuous_days:3,total_days:10,as_of})
