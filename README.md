@@ -1,14 +1,18 @@
 # duanap Hub
 
-> 一个小而美、可持续扩展的个人数字门户。**独立新项目 · 开发起点 v0.1.0**。
+> 一个小而美、可持续扩展的个人数字门户。**独立新项目 · P1 已部署（全新数据）**。
 
 `duanap.cn` 是个人品牌与作品的主要入口：个人介绍、项目/游戏介绍、手动维护的版本和公告、在线工具、SEO 与 RSS，以及轻量卡片化管理后台 `duanap Studio`。
 
 ## 开发状态与承诺边界
 
-本仓库当前是 **第一阶段开发骨架**，不是现有生产主站的替换包，也不是三个阶段的完成版。包含最小公开页面、SQLite 内容模型、模块启停骨架、独立后台基础身份、项目与公告编辑 API、SEO 及 RSS 示例。**仅为新项目开发基线**，上线前还须完成 `docs/ACCEPTANCE.md` 的验收及生产数据迁移。
+本仓库已完成 **P1 主站本地验收与主域部署**：项目运营、媒体管理、首页编排、Studio 编辑体验、SEO、基础工具和备份恢复。2026-10-13 在生产构建与服务器外部请求被阻断的条件下，26 项浏览器/API 用例通过；另有 6 项备份恢复和 1 项密码环境回归用例通过。按用户选择使用全新数据目录部署，保留原发布和数据供回滚；旧项目未导入。
+
+主站：[duanap.cn](https://duanap.cn/)；[www.duanap.cn](https://www.duanap.cn/) 跳转主域；后台：[Studio 登录](https://duanap.cn/duanap/login)。服务器构建、真实备份恢复、HTTPS、私有缓存头和 EdgeOne 静态缓存均已验证，见 [部署记录](docs/DEPLOYMENT-2026-10-13.md)。管理员凭据只在服务器私有环境维护。
 
 第二阶段接入 `blog.duanap.cn` 的 WordPress/子比用户与积分；第三阶段逐个接入游戏、QQ 机器人、博客文章及 EdgeOne/GitHub 数据。上述扩展服务在第一阶段**不是运行依赖**。
+
+2026-10-14 已完成 P2-1 Bridge 与 P2-2 登录/独立会话/只读账号中心的隔离候选，默认关闭且未生产发布。账号专项 23/23、Core 36/36、恢复 7/7；真实隔离 WordPress/Bridge HTTPS 链路 16 项通过。完整子比/QQ/Redis、绑定和统一签到仍待验收，详见 [P2-2 记录与配置](docs/P2-ACCOUNTS-2026-10-14.md)。账号测试使用 `npx playwright test -c playwright.accounts.config.ts`，不加入普通 Core 测试实例。
 
 ## 三阶段交付
 
@@ -22,7 +26,7 @@
 
 ## 技术选择
 
-- Next.js 16 App Router / React 19 / TypeScript；Node.js 22。
+- Next.js 16 App Router / React 19 / TypeScript；Node.js 22+。
 - 主站独立 SQLite（`better-sqlite3`）；WordPress 仍维持 MySQL/MariaDB。
 - 自定义 CSS 组件，轻量卡片式后台，不引入大型 UI 系统。
 - 宝塔 + Nginx + EdgeOne；**无 Docker、无强制 CI/GitHub Actions**。
@@ -34,12 +38,12 @@
 
 ```powershell
 Copy-Item .env.example .env.local
-npm install
+npm ci
 node scripts/hash-password.mjs
 npm run dev
 ```
 
-将密码脚本生成的 `scrypt$...` 字符串复制到 `.env.local` 的 `HUB_ADMIN_PASSWORD_HASH`；密码至少 12 位。然后打开：
+将密码脚本生成的整行复制到 `.env.local`；其中美元符号已经转义，复制时保留反斜杠，避免 Next.js 环境变量展开破坏哈希。密码至少 12 位。然后打开：
 
 - 主站：<http://127.0.0.1:1026/>
 - 后台：<http://127.0.0.1:1026/duanap/login>
@@ -53,9 +57,34 @@ npm run dev
 npm run typecheck
 npm run build
 npm run check:structural
+npm run test:backup
+npm run test:env
+npm test
 ```
 
-2026-10-10 本机已通过关键文件结构检查和密码脚本语法检查；未安装 TypeScript 时，结构检查会明确跳过 AST 解析。依赖安装、类型检查、Next.js 构建与浏览器验收仍待完成，验证通过后再上线。
+本地验证与尚未完成的生产门槛分别记录在 [实际完成状态](docs/DEVELOPMENT-STATUS.md) 和 [验收清单](docs/ACCEPTANCE.md)。
+
+浏览器测试在端口 1027 启动独立实例，自动生成临时管理员凭据和 `.tmp/` 下的独立数据库，不读取开发或生产数据。Windows 默认使用已安装的 Microsoft Edge；其他平台先运行 `npx playwright install chromium`。可用 `HUB_TEST_BROWSER_CHANNEL` 指定其他已安装的 Chromium 浏览器通道。
+
+测试生产构建（先执行 `npm run build`）在 PowerShell 中使用：
+
+```powershell
+$env:HUB_TEST_SERVER_MODE = 'production'
+$env:HUB_TEST_OFFLINE = '1'
+npm test
+Remove-Item Env:HUB_TEST_SERVER_MODE
+Remove-Item Env:HUB_TEST_OFFLINE
+```
+
+`HUB_TEST_OFFLINE=1` 让测试服务拒绝非回环地址的服务器 `fetch` 请求，用于验证 Core 不依赖第三方服务；该开关只用于测试。
+
+## 内容与备份
+
+Studio 可上传头像、项目封面/图标/截图，并管理项目分组、标签、版本日期、公告排期和路线图状态。首页项目数量、布局、动态、模块顺序和社交入口均可编辑。支持侧栏折叠、明暗主题，以及已经保存内容的桌面/手机首页预览。
+
+图片上传接受最多 5 MiB 的 PNG/JPEG/WebP/GIF，解码后转为 WebP；GIF 使用首帧。持久化文件位于 `HUB_DATA_DIR`，不进入 Git。一个数据目录只允许一个应用进程。
+
+后台「系统信息」可创建与下载数据库/媒体备份；恢复通过停止应用后的 CLI 执行，包含校验、维护锁和回滚副本。详见 [备份与恢复](docs/BACKUP-RESTORE.md)。
 
 ## 独立 GitHub 仓库
 
@@ -82,6 +111,7 @@ Set-Location duanap-hub
 6. [本地、宝塔部署和迁移](docs/DEPLOYMENT.md)
 7. [验收清单](docs/ACCEPTANCE.md)
 8. [实际完成状态和待验证事项](docs/DEVELOPMENT-STATUS.md)
+9. [旧站源码核查与迁移准备](docs/MIGRATION-AUDIT.md)
 
 ## 旧项目边界
 

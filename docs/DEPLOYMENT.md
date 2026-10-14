@@ -1,17 +1,25 @@
 # 开发、宝塔部署、备份与迁移
 
+## 当前主域发布
+
+2026-10-13 已按用户明确要求部署到 `duanap.cn / www.duanap.cn`，使用全新内容库，原版本与数据保留供恢复。公开验证结论见 [本次部署记录](DEPLOYMENT-2026-10-13.md)；实际配置与操作步骤保存在用户受控的私有记录中。下面的独立测试部署部分仍是后续测试站点参考方案。
+
 ## 开发环境
 
 - Node.js >=22；建议与依赖版本匹配。
 - `.env.example` 复制为 `.env.local`；`HUB_SITE_URL` 与浏览器实际 Origin 保持一致。
 - `HUB_ADMIN_PASSWORD_HASH` 使用 `node scripts/hash-password.mjs` 交互式生成；不把明文密码放进 Git。
-- `npm install` 后运行 `npm run dev`；首次请求会自动创建本地 SQLite 数据文件。
+- `npm ci` 后运行 `npm run dev`；首次请求会自动创建本地 SQLite 数据文件。一个数据目录仅允许一个应用进程。
 
 ## 独立测试部署
 
 优先使用未占用的 1026 端口，在 Nginx 配置新的测试域名或仅内部端口。保留 `duanap.cn` 现有站点和现有 `duanap-index`/Astro 项目运行状态。
 
-准备 Node.js 22、持久化目录、`.env.local`，执行 `npm install`、`npm run build`、`npm start`。宝塔 Node 项目设置工作目录为新源码，运行命令 `npm start`，转发到 `127.0.0.1:1026`。EdgeOne/CDN 应将 `/duanap`、`/api/`、所有登录回调标记为不缓存；静态公开资源可以缓存。实际 HTTPS 域名必须正确填写到 `HUB_SITE_URL`。
+准备 Node.js 22、独立持久化目录、`.env.local`，执行 `npm ci`、`npm run build`、`npm start`。宝塔 Node 项目设置工作目录为新源码，运行命令 `npm start`，转发到 `127.0.0.1:1026`。EdgeOne/CDN 应将 `/duanap`、`/api/`、所有登录回调标记为不缓存；静态公开资源和不可变媒体可以缓存。实际 HTTPS 域名必须正确填写到 `HUB_SITE_URL`。
+
+配置草案见 [独立测试 Nginx 示例](nginx-test-site.conf.example)：仅提供 HTTP 内部代理和后台/API 缓存排除，需替换域名并配置真实 HTTPS；本地没有运行 Nginx 或验证 EdgeOne。代理须覆盖客户端传入的 IP 头，限速不能信任任意用户提供的地址。动态首页、项目、Sitemap/RSS 先不设置 CDN 页面缓存，确保发布/模块关闭即时生效。
+
+独立测试域名尚未创建；本次主域发布先在回环临时端口验收，再切换原服务。未来创建测试站点前，仍须核对域名、目录、端口及受控数据权限。源码核查结果见 [迁移准备](MIGRATION-AUDIT.md)，线上事实以部署记录中的实际检查为准。
 
 ## 上线前迁移
 
@@ -21,12 +29,16 @@
 4. 对照历史 URL 生成 301 计划，逐页验证 canonical、robots、Sitemap、RSS。
 5. 独立新站完成 `ACCEPTANCE.md` 后，才考虑 Nginx 上线切换；保留原版本与回滚配置。
 
-**注意：** 当前 starter 的数据库与 `duanap-index` 并不兼容；没有自动导入脚本，也不能把旧 `duanap.db` 直接改名放进来。
+**注意：** Hub 的数据库与两套旧仓库均不兼容；没有生产自动导入脚本，也不能把旧数据库直接改名放进来。真实数据导入和生产站点替换须单独批准。
 
 ## 备份
 
-开发期数据库可在关闭应用后复制完整 `data/` 目录；生产服务运行时请使用 SQLite 在线安全备份（例如 SQLite Backup API 或明确管理 WAL 一致性的工具），不要仅拷贝主 `.db` 文件。恢复演练还需核验媒体和配置。
+Studio「系统信息」可创建 SQLite 在线安全快照与本地媒体归档并下载。快照清除会话和登录失败记录，不包含 `.env.local`；不要仅拷贝正在运行的主 `.sqlite` 文件。
+
+恢复须停止应用后运行 `scripts/restore-backup.mjs`，先校验归档，再保存回滚副本。命令、大小限制和失败恢复说明见 [备份与恢复](BACKUP-RESTORE.md)。本地已实际恢复并回滚临时数据，部署环境仍需另行演练。
+
+发布时保留上一个构建/源码版本和部署配置；先备份、停止旧进程，再启动新版本并检查健康/页面/后台。一个 `HUB_DATA_DIR` 不能供新旧两个进程同时运行。失败时停新进程、回到旧版本；若数据已变化，使用兼容的回滚归档，并检查媒体与配置。
 
 ## 无 CI 限制
 
-本仓库默认不含 `.github/workflows`。本地检查清单：`npm run typecheck`、`npm run build`、`npm run check:structural` 及功能验收。
+本仓库默认不含 `.github/workflows`。本地检查清单：`npm run typecheck`、`npm run build`、`npm run check:structural`、`npm run test:backup` 及生产模式浏览器/API 验收。

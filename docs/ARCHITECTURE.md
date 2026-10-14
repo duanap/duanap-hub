@@ -6,7 +6,7 @@
 
 Core 拥有：公开首页与独立内容路由、duanap Studio、管理员独立鉴权、模块/排序、项目运营内容、工具索引、SEO、RSS、媒体/数据备份和审计。
 
-第一阶段开发骨架用 `lib/db.ts` 管理 SQLite，`lib/modules.ts` 定义代码注册的模块及数据库开关。内部模块通过代码部署，后台仅控制已注册模块的 enabled/order；因此属于**运行时启停**，不是任意上传代码的真正插件系统。
+第一阶段用 `lib/db.ts` 管理 SQLite，`lib/modules.ts` 定义代码注册的模块及数据库开关；`lib/tools.ts` 仅登记已经实现的工具。内部模块通过代码部署，后台控制已注册模块的 enabled/order。
 
 ## B. 业务模块与外部适配器
 
@@ -15,7 +15,7 @@ Core 拥有：公开首页与独立内容路由、duanap Studio、管理员独�
 - `games`：从 `projects` 中筛选游戏类别；P3 才接战绩与角色服务。
 - `tools`：工具目录及逐个启用的独立工具；密码生成在浏览器本地执行。
 - `content`：P3 才接 WordPress 文章摘要；未配置不触发请求。
-- `accounts`：P2 通过受保护的 WordPress 身份 API/OIDC，浏览器不获得服务端高权限凭据。
+- `accounts`：P2 优先免费 WordPress OAuth2 + S256 PKCE + Bridge 本人 API，浏览器不获得上游令牌；候选隔离验证见 `P2-COMPATIBILITY.md`，正式启用仍待联调。
 - `edgeone`：P3 服务端读 API，设置超时和带时间戳的缓存。
 - `bot`：P3 独立 QQ Bot 进程，只有绑定身份和业务 API，不直接写 WordPress 或游戏数据库。
 
@@ -35,10 +35,13 @@ Core 拥有：公开首页与独立内容路由、duanap Studio、管理员独�
 ## D. 运维和安全原则
 
 - 私有数据统一写入 `HUB_DATA_DIR`，不放进 Git、`public/` 或 Next.js 编译产物。
+- `lib/storage.ts` 为每个数据目录维护单进程运行锁和离线恢复维护锁；内容改写、媒体删除与在线备份通过进程内队列串行执行。SQLite 使用 WAL，在线备份通过 Backup API 生成一致性副本。
+- 图片解码并重编码为随机名 WebP；公开媒体路由只读，文件响应带 `nosniff`。备份下载独立鉴权，恢复只通过停机 CLI 执行。
 - `HUB_SITE_URL` 决定站点真实 origin、canonical 和 CSRF Origin 校验；公网 Nginx 须正确设置 Host/HTTPS，EdgeOne 避免缓存登录及 API 响应。
 - Studio 与用户身份分权：主站后台管理员会话独立，P2 的普通用户 QQ 登录不会自动有后台权限。
 - 所有改写请求需身份鉴权与来源校验；OAuth 的 state、PKCE、精确 redirect_uri 均需在 P2 验证。
 - WordPress 积分必须使用唯一业务事件 ID 防重放；提交成功以权威服务确认结果为准。
+- P2 候选使用独立 `accounts.sqlite` 与普通用户 Cookie；服务器令牌/verifier 加密存储，业务请求不占用内容队列。默认关闭、恢复后清除本地普通认证数据，详见 `P2-ACCOUNTS-2026-10-14.md`。
 - 外部数据适配器应有超时、有限重试、明确显示过期或失败，不把失败当作 0。
 - 游戏角色 API 的权限和结算必须由游戏服务自身验证，不信任浏览器或机器人提供的玩家 ID。
 
@@ -48,4 +51,4 @@ Core 拥有：公开首页与独立内容路由、duanap Studio、管理员独�
 
 ## F. 可用性判定
 
-「P1 可上线」与「能启动开发服务器」是两个不同状态。开发骨架提供最小可运行路径，但生产发布仍需完成视觉交互、迁移/备份、功能测试及故障演练。
+P1 的本地生产构建、浏览器/API、断网和备份恢复演练已完成。2026-10-13 已按用户选择使用全新数据目录部署主域，服务器真实备份恢复、域名/HTTPS 和 EdgeOne 缓存检查通过，证据见 `DEPLOYMENT-2026-10-13.md`。旧项目没有导入，历史内容迁移及搜索平台实际收录不能由这些检查代替。

@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { SITE_BASE } from '@/lib/config'
 import { getSiteSettings, isEnabled, listProjects } from '@/lib/db'
+import { REGISTERED_TOOLS } from '@/lib/tools'
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
 export default function sitemap():MetadataRoute.Sitemap{
@@ -12,6 +13,6 @@ export default function sitemap():MetadataRoute.Sitemap{
     for(const p of listProjects({publishedOnly:true})) data.push({url:new URL(`/projects/${p.slug}`,SITE_BASE).href})
   }
   if(isEnabled('games')&&isEnabled('projects'))data.push({url:new URL('/games',SITE_BASE).href})
-  if(isEnabled('tools')){data.push({url:new URL('/tools',SITE_BASE).href},{url:new URL('/tools/password',SITE_BASE).href})}
+  if(isEnabled('tools')){data.push({url:new URL('/tools',SITE_BASE).href}); for (const tool of REGISTERED_TOOLS) if (tool.available) data.push({url:new URL(tool.path,SITE_BASE).href})}
   return data
 }

@@ -28,3 +28,13 @@
 ## 最初 Codex 任务
 
 开始 P1：先审查当前开发包与 `duanap-index` 的可复用实现，设计最小安全迁移策略。然后以可运行、可验收的顺序补全卡片化 Studio、项目更新与公告管理、首页模块编排、SEO、媒体与备份。将旧站数据导入视为独立经批准的任务。
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
