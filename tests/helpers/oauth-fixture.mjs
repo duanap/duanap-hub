@@ -7,9 +7,12 @@ let mode='normal', lifetime=3600, calls=0,releaseToken,releaseRevoke
 const checkins=new Map();let writeCalls=0
 const businessDate=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
 const users={alice:'11111111-1111-4111-8111-111111111111',bob:'22222222-2222-4222-8222-222222222222'}
+const fixtureOrigin=process.env.HUB_FIXTURE_CALLBACK_ORIGIN||'http://127.0.0.1:1027',fixturePort=Number(process.env.HUB_FIXTURE_PORT||1031)
+if(new URL(fixtureOrigin).hostname!=='127.0.0.1'||!Number.isInteger(fixturePort)||fixturePort<1024||fixturePort>65535)throw new Error('Loopback fixture configuration required')
+const providerOrigin='http://127.0.0.1:'+fixturePort
 const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'private, no-store'});res.end(JSON.stringify(data))}
 http.createServer(async(req,res)=>{
-  const url=new URL(req.url,'http://127.0.0.1:1031')
+  const url=new URL(req.url,providerOrigin)
   if(url.pathname==='/health')return json(res,200,{fixture:true})
   const chunks=[];for await(const part of req)chunks.push(part)
   const body=Buffer.concat(chunks).toString()
@@ -25,7 +28,7 @@ http.createServer(async(req,res)=>{
   }
   if(url.pathname==='/oauth/authorize/'){
     const p=url.searchParams
-    if(p.get('client_id')!==process.env.HUB_WORDPRESS_CLIENT_ID||p.get('redirect_uri')!=='http://127.0.0.1:1027/api/auth/callback'||p.get('code_challenge_method')!=='S256')return json(res,400,{error:'invalid_request'})
+    if(p.get('client_id')!==process.env.HUB_WORDPRESS_CLIENT_ID||p.get('redirect_uri')!==fixtureOrigin+'/api/auth/callback'||p.get('code_challenge_method')!=='S256')return json(res,400,{error:'invalid_request'})
     const code=randomBytes(24).toString('base64url'),user=p.get('fixtureUser')==='bob'?'bob':'alice'
     codes.set(code,{challenge:p.get('code_challenge'),redirect:p.get('redirect_uri'),user})
     const target=new URL(p.get('redirect_uri'));target.searchParams.set('code',code);target.searchParams.set('state',p.get('state'))
@@ -66,11 +69,11 @@ http.createServer(async(req,res)=>{
       if(mode==='checkin-lost-response'){setTimeout(()=>json(res,200,result),6000);return}
       return json(res,200,mode==='checkin-invalid'?{...result,balance:'broken'}:mode==='checkin-invalid-receipt'?{...result,receipt:'-'.repeat(36)}:result)
     }
-    if(url.pathname.endsWith('/bindings'))return json(res,200,{providers:[{provider:'qq',name:'QQ',configured:true,linked:isAlice,legacy_review:false,subject:'MUST_NOT_LEAK'},{provider:'github',name:'GitHub',configured:true,linked:!isAlice,legacy_review:false},{provider:'gitee',name:'Gitee',configured:false,linked:false,legacy_review:false}],password_ready:false,management_url:mode==='wrong-binding-origin'?'https://evil.invalid/manage':'http://127.0.0.1:1031/hub-account-bindings',recovery_url:'http://127.0.0.1:1031/wp-login.php?action=lostpassword',as_of})
+    if(url.pathname.endsWith('/bindings'))return json(res,200,{providers:[{provider:'qq',name:'QQ',configured:true,linked:isAlice,legacy_review:false,subject:'MUST_NOT_LEAK'},{provider:'github',name:'GitHub',configured:true,linked:!isAlice,legacy_review:false},{provider:'gitee',name:'Gitee',configured:false,linked:false,legacy_review:false}],password_ready:false,management_url:mode==='wrong-binding-origin'?'https://evil.invalid/manage':providerOrigin+'/hub-account-bindings',recovery_url:providerOrigin+'/wp-login.php?action=lostpassword',as_of})
     if(url.pathname.endsWith('/me'))return json(res,200,{hub_uid:mode==='wrong-identity'?users.bob:users[token.user],display_name:mode==='long-name'?'界'.repeat(250):isAlice?'Alice':'Bob',avatar_url:'',as_of,email:'MUST_NOT_LEAK',roles:['administrator']})
     if(url.pathname.endsWith('/points'))return json(res,200,{balance:mode==='invalid-data'?'broken':daily?.balance??(isAlice?100:200),as_of})
     if(url.pathname.endsWith('/checkin'))return json(res,200,{business_date:businessDate(),timezone:'Asia/Shanghai',checked_in:!!daily||isAlice,continuous_days:daily?4:3,total_days:daily?11:10,as_of})
     return json(res,200,{items:[{delta:5,balance_after:isAlice?100:200,reason:'合成测试',occurred_at:as_of,private_note:'MUST_NOT_LEAK'}],page:1,per_page:20,total_retained:1,retention_limit:50,as_of})
   }
   json(res,404,{error:'not_found'})
-}).listen(1031,'127.0.0.1')
+}).listen(fixturePort,'127.0.0.1')
