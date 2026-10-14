@@ -4,6 +4,8 @@ import { randomBytes, createHash } from 'node:crypto'
 if (process.env.HUB_ACCOUNTS_FIXTURE !== '1') throw new Error('Explicit fixture mode required')
 const codes=new Map(), tokens=new Map()
 let mode='normal', lifetime=3600, calls=0,releaseToken,releaseRevoke
+const checkins=new Map();let writeCalls=0
+const businessDate=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
 const users={alice:'11111111-1111-4111-8111-111111111111',bob:'22222222-2222-4222-8222-222222222222'}
 const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'private, no-store'});res.end(JSON.stringify(data))}
 http.createServer(async(req,res)=>{
@@ -17,7 +19,9 @@ http.createServer(async(req,res)=>{
     if(state.releaseRevoke){releaseRevoke?.();releaseRevoke=undefined;return json(res,200,{released:true})}
     mode=state.mode??'normal';lifetime=state.lifetime??3600
     if(state.revoke)tokens.clear()
-    return json(res,200,{calls,mode})
+    if(state.resetCheckins){checkins.clear();writeCalls=0}
+    if(state.seedCheckin){checkins.set(state.seedCheckin+':'+businessDate(),{status:'success',receipt:'33333333-3333-4333-8333-333333333333',business_date:businessDate(),timezone:'Asia/Shanghai',checked_in:true,continuous_days:4,total_days:11,balance:205,points_awarded:5,integral_awarded:2,as_of:new Date().toISOString()})}
+    return json(res,200,{calls,mode,writeCalls})
   }
   if(url.pathname==='/oauth/authorize/'){
     const p=url.searchParams
@@ -50,10 +54,22 @@ http.createServer(async(req,res)=>{
     const token=tokens.get((req.headers.authorization||'').replace(/^Bearer /,''))
     if(!token||token.expires<=Date.now())return json(res,401,{error:'invalid_token'})
     const as_of=new Date().toISOString(),isAlice=token.user==='alice'
+    const dailyKey=token.user+':'+businessDate(),daily=checkins.get(dailyKey)
+    if(url.pathname.endsWith('/checkin/result'))return json(res,200,daily?{...daily,status:'already'}:{status:mode==='checkin-processing'?'processing':'not_recorded',business_date:url.searchParams.get('business_date'),timezone:'Asia/Shanghai',as_of})
+    if(url.pathname.endsWith('/checkin')&&req.method==='POST'){
+      writeCalls++
+      const input=JSON.parse(body)
+      if(input.business_date!==businessDate())return json(res,409,{error:'date_changed'})
+      if(mode==='checkin-processing')return json(res,200,{status:'processing',business_date:businessDate(),timezone:'Asia/Shanghai',as_of})
+      const result=daily?{...daily,status:'already'}:{status:'success',receipt:'33333333-3333-4333-8333-333333333333',business_date:businessDate(),timezone:'Asia/Shanghai',checked_in:true,continuous_days:4,total_days:11,balance:isAlice?105:205,points_awarded:5,integral_awarded:2,as_of,private_note:'MUST_NOT_LEAK'}
+      checkins.set(dailyKey,result)
+      if(mode==='checkin-lost-response'){setTimeout(()=>json(res,200,result),6000);return}
+      return json(res,200,mode==='checkin-invalid'?{...result,balance:'broken'}:mode==='checkin-invalid-receipt'?{...result,receipt:'-'.repeat(36)}:result)
+    }
     if(url.pathname.endsWith('/bindings'))return json(res,200,{providers:[{provider:'qq',name:'QQ',configured:true,linked:isAlice,legacy_review:false,subject:'MUST_NOT_LEAK'},{provider:'github',name:'GitHub',configured:true,linked:!isAlice,legacy_review:false},{provider:'gitee',name:'Gitee',configured:false,linked:false,legacy_review:false}],password_ready:false,management_url:mode==='wrong-binding-origin'?'https://evil.invalid/manage':'http://127.0.0.1:1031/hub-account-bindings',recovery_url:'http://127.0.0.1:1031/wp-login.php?action=lostpassword',as_of})
     if(url.pathname.endsWith('/me'))return json(res,200,{hub_uid:mode==='wrong-identity'?users.bob:users[token.user],display_name:mode==='long-name'?'界'.repeat(250):isAlice?'Alice':'Bob',avatar_url:'',as_of,email:'MUST_NOT_LEAK',roles:['administrator']})
-    if(url.pathname.endsWith('/points'))return json(res,200,{balance:mode==='invalid-data'?'broken':isAlice?100:200,as_of})
-    if(url.pathname.endsWith('/checkin'))return json(res,200,{business_date:new Date().toISOString().slice(0,10),timezone:'Asia/Shanghai',checked_in:isAlice,continuous_days:3,total_days:10,as_of})
+    if(url.pathname.endsWith('/points'))return json(res,200,{balance:mode==='invalid-data'?'broken':daily?.balance??(isAlice?100:200),as_of})
+    if(url.pathname.endsWith('/checkin'))return json(res,200,{business_date:businessDate(),timezone:'Asia/Shanghai',checked_in:!!daily||isAlice,continuous_days:daily?4:3,total_days:daily?11:10,as_of})
     return json(res,200,{items:[{delta:5,balance_after:isAlice?100:200,reason:'合成测试',occurred_at:as_of,private_note:'MUST_NOT_LEAK'}],page:1,per_page:20,total_retained:1,retention_limit:50,as_of})
   }
   json(res,404,{error:'not_found'})

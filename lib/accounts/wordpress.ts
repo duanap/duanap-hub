@@ -4,11 +4,13 @@ export type Points={balance:number;asOf:string}
 export type Checkin={businessDate:string;timezone:string;checkedIn:boolean;continuousDays:number;totalDays:number;asOf:string}
 export type History={items:{delta:number;balanceAfter:number;reason:string;occurredAt:string}[];page:number;perPage:number;totalRetained:number;retentionLimit:number;asOf:string}
 export type Bindings={providers:{provider:string;name:string;configured:boolean;linked:boolean;legacyReview:boolean}[];passwordReady:boolean;managementUrl:string;recoveryUrl:string;asOf:string}
+export type CheckinResult={status:'processing'|'not_recorded';businessDate:string;timezone:'Asia/Shanghai';asOf:string}|({status:'success'|'already';receipt:string;balance:number;pointsAwarded:number;integralAwarded:number}&Checkin)
 
 async function provider(config:AccountConfig,path:string,options:RequestInit){
   try{
     const response=await fetch(new URL(path,config.base),{...options,redirect:'manual',cache:'no-store',signal:AbortSignal.timeout(2500),headers:{Accept:'application/json',...options.headers}})
     if(response.status===401||response.status===403)throw new AccountError(response.status,'upstream_unauthorized','博客授权已失效或账号不可用，请重新登录')
+    if(response.status===409)throw new AccountError(409,'upstream_conflict','博客请求已变化，请刷新后操作')
     if(!response.ok||!response.headers.get('content-type')?.includes('application/json'))throw new Error('Unavailable')
     const reader=response.body?.getReader();if(!reader)throw new Error('Missing body')
     const chunks:Uint8Array[]=[];let bytes=0
@@ -19,6 +21,24 @@ async function provider(config:AccountConfig,path:string,options:RequestInit){
   }catch(error){if(error instanceof AccountError)throw error;throw new AccountError(503,'wordpress_unavailable','博客服务暂不可用，请稍后重试')}
 }
 const invalid=()=>new AccountError(503,'invalid_wordpress_data','博客返回的数据暂不可用')
+export function validBusinessDate(value:unknown):value is string {
+  return typeof value==='string'&&/^\d{4}-\d\d-\d\d$/.test(value)&&Number.isFinite(Date.parse(value+'T00:00:00Z'))&&new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value
+}
+function checkinResult(p:Record<string,unknown>):CheckinResult {
+  const businessDate=p.business_date;if(!validBusinessDate(businessDate)||p.timezone!=='Asia/Shanghai')throw invalid()
+  const base={businessDate,timezone:'Asia/Shanghai' as const,asOf:date(p.as_of)}
+  if(p.status==='processing'||p.status==='not_recorded')return {...base,status:p.status}
+  if((p.status!=='success'&&p.status!=='already')||p.checked_in!==true||typeof p.receipt!=='string'||! /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p.receipt))throw invalid()
+  return {...base,status:p.status,receipt:p.receipt,checkedIn:true,continuousDays:integer(p.continuous_days,1),totalDays:integer(p.total_days,1),balance:integer(p.balance),pointsAwarded:integer(p.points_awarded),integralAwarded:integer(p.integral_awarded)}
+}
+export async function writeCheckin(config:AccountConfig,token:string,businessDate:string){
+  const p=await provider(config,'wp-json/duanap-hub/v1/me/checkin',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({business_date:businessDate})})
+  const result=checkinResult(p);if(result.businessDate!==businessDate||result.status==='not_recorded')throw invalid();return result
+}
+export async function readCheckinResult(config:AccountConfig,token:string,businessDate:string){
+  const result=checkinResult(await provider(config,'wp-json/duanap-hub/v1/me/checkin/result?'+new URLSearchParams({business_date:businessDate}),{headers:{Authorization:'Bearer '+token}}))
+  if(result.businessDate!==businessDate)throw invalid();return result
+}
 function text(value:unknown,limit:number){if(typeof value!=='string'||value.length>limit)throw invalid();return value}
 function integer(value:unknown,min=0,max=Number.MAX_SAFE_INTEGER){if(typeof value!=='number'||!Number.isSafeInteger(value)||value<min||value>max)throw invalid();return value}
 function date(value:unknown){const result=text(value,40);if(!/^\d{4}-\d\d-\d\dT/.test(result)||!Number.isFinite(Date.parse(result)))throw invalid();return result}

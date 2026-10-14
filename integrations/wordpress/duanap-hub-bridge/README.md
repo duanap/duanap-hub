@@ -1,6 +1,6 @@
-# duanap Hub Bridge 0.2.0
+# duanap Hub Bridge 0.3.0
 
-P2 隔离候选：稳定身份和本人只读资料、积分、签到状态、积分流水，以及默认关闭的原生社交绑定适配。WordPress 保持用户和业务数据权威；本插件没有签到、积分发放或 Studio 管理权限接口。许可：GPL-2.0-or-later。
+P2 隔离候选：稳定身份和本人只读资料、积分、签到状态、积分流水，以及默认关闭的原生社交绑定与统一每日签到适配。WordPress 保持用户和业务数据权威；本插件没有通用积分发放或 Studio 管理权限接口。许可：GPL-2.0-or-later。
 
 ## 支持边界
 
@@ -46,7 +46,7 @@ Hub 的回调已在 P2-2 隔离候选实现，正式启用仍须联调。Provide
 
 流水条目仅含 `delta`、`balance_after`、去 HTML 的 `reason`、UTC `occurred_at`。上游最多保留 50 条，这不是完整积分审计账本。`page` 1–50，`per_page` 1–20。原生分钟精度记录转换后不增加精度。
 
-401：缺失、过期或撤销的令牌。403：错误客户端、非用户令牌、账号删除/停用/封禁。400：身份覆盖参数或非法分页。503：配置、版本、引擎、时区、业务开关、数据格式或存储不可用；不会把失败显示为零余额。POST 签到等写入路由不存在。
+401：缺失、过期或撤销的令牌。403：错误客户端、非用户令牌、账号删除/停用/封禁。400：身份覆盖参数或非法分页。503：配置、版本、引擎、时区、业务开关、数据格式或存储不可用；不会把失败显示为零余额。签到写入有单独默认关闭的开关，见下文。
 
 UID 为随机 UUIDv4，对 WP 用户 ID 唯一。分配时锁定有效用户行；删除用户后保留 UID 退役记录，清除 WP ID 关联，不重新使用旧 UID。封禁判定直接读取状态，过期封禁允许读取但不调用会自动解封、写元数据的主题函数。返回中不含 WP 内部 ID、邮箱、角色、密码、密钥或令牌。
 
@@ -81,6 +81,35 @@ P2-1 原始结果及 P2-2 结果见各阶段记录；P2-3 的完整主题、社�
 
 ## 备份与停用
 
-插件 UID 表与非敏感客户端 ID 选项归 WordPress 备份，需与用户表一致；不放入 Hub 内容备份。Provider 令牌属于私有数据。没有卸载删除逻辑，停用保留 UID 和已有业务数据。
+插件 UID、社交映射和每日事件表与非敏感客户端 ID 选项归 WordPress 备份，需与用户、积分及原生日志一致；不放入 Hub 内容备份。Provider 令牌属于私有数据。没有卸载删除逻辑，停用保留 UID、事件和已有业务数据。
+
+## 默认关闭的统一签到
+
+WordPress 的 `DUANAP_HUB_CHECKIN_ENABLED=true` 才接管原生 `wp_ajax_user_checkin`；Hub 的 `HUB_CHECKIN_ENABLED=1` 是独立写入开关，默认值 0。升级需重新激活 Bridge 建立事件表。开关关闭时原生主题继续原有行为；已有回执的本人查询不受写入开关影响。检测到持久对象缓存、非 InnoDB 表、不兼容主题/时区、未审计签到业务钩子时拒绝统一签到，不宣称这些部署已通过。
+
+| 本人接口 | 合同 |
+| --- | --- |
+| `POST /me/checkin` | JSON `business_date`，必须为服务端当前北京时间自然日；本人 Bearer 鉴权，拒绝身份覆盖 |
+| `GET /me/checkin/result?business_date=YYYY-MM-DD` | 本人指定日期回执；已关闭写入仍可查询；不重新发奖 |
+
+`success` 和 `already` 返回稳定 UUID 回执、实际积分/经验到账值、签到累计/连续天数和提交时余额；重放保留同一回执及原结果。`processing` 表示正在持有同一用户锁，`not_recorded` 只用于结果查询，表示尚无已提交事件。503 表示结果未确认，不能自动当作未发奖或重复写入。回执是历史事实，当前余额应重新读取积分接口。
+
+每日唯一键为 `hub_uid + daily_checkin + business_date`，首次事件由服务端记录 blog/hub 来源，不信任调用方自报来源。原生 AJAX 和 API 进入同一短事务，调用完整主题的原始奖励逻辑；实际金额受原生每日上限影响。已有原生签到仅补观测回执，实际到账记 0，不追发。WordPress 用户行及元数据行锁、SQL失败捕获、提交后缓存清理与数据库事务状态保护保证积分、经验、签到/奖励记录和回执共同提交或回滚。
+
+当前只支持已验收的 MariaDB/mysqli 运行环境和原生 SQL 形式。WordPress 自动重连后的重试 SQL 必须仍处于事务，否则不写入；提交连接变更返回未确认，随后查询同一日期回执。遇到新业务 SQL/主题钩子拒绝执行，需要重新审计，不放宽为无保护写入。
+
+原生按钮增加外置脚本，点击捕获阶段补 WordPress action nonce，复用主题原 AJAX；不修改商业源码。处理中响应不带已签到详情链接。主站具有 Origin/CSRF/请求体边界、本人 UID 检查、独立写入开关和显式查询按钮；未确认结果不自动重试，不在浏览器累加积分。
+
+隔离测试命令：
+
+```sh
+PHP_BINARY tests/checkin.php ISOLATED_WORDPRESS_ROOT
+python3 tests/checkin-http.py --config PRIVATE_FIXTURE_JSON --wp-root ISOLATED_WORDPRESS_ROOT --php PHP_BINARY
+# Compiles only a process-local clock shim inside the private sandbox.
+gcc -shared -fPIC -o PRIVATE_SANDBOX/checkin-clock.so tests/checkin-clock.c -ldl
+python3 tests/checkin-boundary.py --wp-root ISOLATED_WORDPRESS_ROOT --php PHP_BINARY --preload PRIVATE_SANDBOX/checkin-clock.so
+```
+
+所有脚本先核对显式标记、新建数据库前缀和开发环境；CLI 故障测试仅针对合成账号创建触发器/断开本测试连接。测试时钟只注入子 PHP 进程，不改变系统/生产服务时钟。生产邮件、Redis、WPOPT 和其他插件组合尚未完成验收。结果与停用边界见 [P2-4 记录](../../../docs/P2-CHECKIN-2026-10-15.md)。
 
 未来回退先关闭 Hub 账号模块并清除本地用户会话、停用专用 OAuth 客户端/撤销令牌，关闭社交适配再停用 Bridge；保留用户、UID、社交映射和业务账本。关闭后恢复主题原生行为，新增唯一约束/解绑保护不再覆盖该原生流程；重新启用若原生绑定已变化，须人工核实。不能用旧余额快照覆盖新增交易。正式部署前仍需真实登录、持久缓存、备份与回退验收。本批仅提交候选代码，生产博客保持未安装状态。

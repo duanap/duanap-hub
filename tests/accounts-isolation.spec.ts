@@ -16,7 +16,7 @@ test('users read their own balance/history and cannot revoke another account ses
   const history=await alice.get('/api/account/points/history');expect(await history.text()).not.toContain('MUST_NOT_LEAK')
   expect((await alice.get('/api/account/me?hub_uid='+b.me.user.hubUid)).status()).toBe(400)
   expect((await alice.get('/api/account/points/history?per_page=999')).status()).toBe(400)
-  expect((await alice.post('/api/account/checkin')).status()).toBe(405)
+  expect((await alice.post('/api/account/checkin')).status()).toBe(403)
   const sessions=await (await bob.get('/api/account/sessions')).json(),foreign=sessions.sessions[0].id
   expect((await alice.post(`/api/account/sessions/${foreign}/revoke`,{headers:{Origin:accountOrigin,'X-Hub-CSRF':a.me.csrfToken}})).status()).toBe(404)
   expect((await bob.get('/api/account/me')).status()).toBe(200)

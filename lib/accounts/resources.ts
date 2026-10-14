@@ -14,7 +14,7 @@ export async function accountResource(request:Request,kind:'me'|'points'|'checki
       let data:unknown
       if(kind==='me')data={user:identity,csrfToken:csrfToken(config,current),expiresAt:current.expiresAt,blogUrl:config.base.href}
       else if(kind==='points')data=await readPoints(config,current.accessToken)
-      else if(kind==='checkin')data=await readCheckin(config,current.accessToken)
+      else if(kind==='checkin')data={...await readCheckin(config,current.accessToken),canCheckin:process.env.HUB_CHECKIN_ENABLED==='1'}
       else if(kind==='bindings'){
         const binding=await readBindings(config,current.accessToken),target=new URL(binding.managementUrl)
         target.searchParams.set('expect_uid',current.hubUid);data={...binding,managementUrl:target.href}

@@ -1,7 +1,7 @@
 import { expect,type APIRequestContext } from '@playwright/test'
 export const accountOrigin='http://127.0.0.1:1027'
 export async function enableAccounts(admin:APIRequestContext){
-  await admin.post('http://127.0.0.1:1031/__fixture/control',{data:{mode:'normal',lifetime:3600}})
+  await admin.post('http://127.0.0.1:1031/__fixture/control',{data:{mode:'normal',lifetime:3600,resetCheckins:true}})
   await admin.post('/api/studio/login',{headers:{Origin:accountOrigin},data:{username:'duanap',password:process.env.HUB_TEST_ADMIN_PASSWORD}})
   expect((await admin.patch('/api/studio/modules',{headers:{Origin:accountOrigin},data:{id:'accounts',enabled:true}})).status()).toBe(200)
 }
