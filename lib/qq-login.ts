@@ -18,6 +18,8 @@ export function qqLoginDestination(): string | null {
   return base ? new URL('oauth/qq', base).href : null
 }
 export function qqCallbackDestination(): URL | null {
+  // A configured blog URL does not prove both sites use the same QQ app.
+  if (process.env.HUB_QQ_CALLBACK_RELAY_ENABLED !== '1') return null
   const base = qqBlogUrl()
   return base ? new URL('oauth/qq/callback', base) : null
 }
