@@ -26,11 +26,13 @@ foreach(($GLOBALS['wp_filter']['user_checkined']->callbacks??[]) as $priority=>$
 try{check_daily('missing native points callback refuses writes',is_wp_error(duanap_hub_checkin_ready()));}
 finally{foreach($removed as [$f,$priority,$args])add_action('user_checkined',$f,$priority,$args);}
 $prior_cache=(bool)wp_using_ext_object_cache();wp_using_ext_object_cache(true);
+global $wp_object_cache;$types=$wp_object_cache->group_type??null;
+if(is_array($types))$wp_object_cache->group_type['user_meta']='global';
 try{
     check_daily('unverified cache blocks writes',is_wp_error(duanap_hub_checkin($id,$date)));
     $lookup=duanap_hub_checkin_result($id,$date);
     check_daily('receipt lookup survives write readiness shutdown',!is_wp_error($lookup)&&$lookup['receipt']===$first['receipt']);
-}finally{wp_using_ext_object_cache($prior_cache);}
+}finally{wp_using_ext_object_cache($prior_cache);if(is_array($types))$wp_object_cache->group_type=$types;}
 check_daily('yesterday write refused',is_wp_error(duanap_hub_checkin($id,gmdate('Y-m-d',strtotime($date.' -1 day')))));
 check_daily('UTC midnight boundary uses Beijing date',duanap_hub_checkin_date(strtotime('2026-10-14T15:59:59Z'))==='2026-10-14'&&duanap_hub_checkin_date(strtotime('2026-10-14T16:00:00Z'))==='2026-10-15');
 $records=zib_get_user_meta($id,'points_record',true);

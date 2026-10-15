@@ -2,12 +2,17 @@
 import argparse,importlib.util,json,os,pathlib,socket,subprocess,time,urllib.request
 spec=importlib.util.spec_from_file_location('recovery_support',pathlib.Path(__file__).with_name('recovery-support.py'))
 support=importlib.util.module_from_spec(spec);spec.loader.exec_module(support)
-p=argparse.ArgumentParser();p.add_argument('--wp-root',required=True);p.add_argument('--php',default='php');p.add_argument('--config',required=True)
+p=argparse.ArgumentParser();p.add_argument('--wp-root',required=True);p.add_argument('--php',default='php');p.add_argument('--config',required=True);p.add_argument('--cache-profile',action='store_true');p.add_argument('--cache-marker')
 args=p.parse_args();os.umask(0o077);root=support.fixture_root(args.wp_root)
 support.assert_offline();support.preflight(root,args.php)
 config=pathlib.Path(args.config).absolute();value=json.loads(config.read_text())
 if value.get('home')!='http://127.0.0.1:1030' or not all(key in value for key in ['alice','bob','clientId','clientSecret','callback']):raise SystemExit('Explicit synthetic loopback configuration required')
-if not (root.parent/'wpopt-result.json').is_file() or (root/'wp-content/object-cache.php').exists():raise SystemExit('Validated non-Redis WPOPT restore required')
+if not (root.parent/'wpopt-result.json').is_file():raise SystemExit('Validated WPOPT restore required')
+if (root/'wp-content/object-cache.php').exists():
+    if not args.cache_profile or not args.cache_marker:raise SystemExit('Persistent cache requires explicit private profile validation')
+    validated=subprocess.run([args.php,str(pathlib.Path(__file__).with_name('cache-profile.php')),str(root),'validate',args.cache_marker],capture_output=True)
+    if validated.returncode:raise SystemExit('Private Redis profile validation failed')
+elif args.cache_profile:raise SystemExit('Expected private Redis drop-in is missing')
 try:
     connection=socket.create_connection(('127.0.0.1',1030),timeout=1);connection.close()
 except OSError:pass
@@ -35,6 +40,6 @@ try:
         if r.returncode:raise RuntimeError('HTTP combination failed '+file+'; details retained privately')
         result=json.loads(r.stdout);results.append({'suite':file,'passed':result['passed']})
 finally:subprocess.run(['systemctl','stop',unit+'.service'],check=True)
-report={'passed':sum(result['passed'] for result in results),'suites':results,'syntheticTransport':True,'productionChanged':False,'fixtureServiceStopped':True}
+report={'passed':sum(result['passed'] for result in results),'suites':results,'cacheProfile':args.cache_profile,'syntheticTransport':True,'productionChanged':False,'fixtureServiceStopped':True}
 file=root.parent/'wpopt-http-result.json';file.write_text(json.dumps(report));file.chmod(0o600)
 print(json.dumps(report))

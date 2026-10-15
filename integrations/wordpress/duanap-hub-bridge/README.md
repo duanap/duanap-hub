@@ -1,4 +1,4 @@
-# duanap Hub Bridge 0.3.0
+# duanap Hub Bridge 0.3.1
 
 P2 隔离候选：稳定身份和本人只读资料、积分、签到状态、积分流水，以及默认关闭的原生社交绑定与统一每日签到适配。WordPress 保持用户和业务数据权威；本插件没有通用积分发放或 Studio 管理权限接口。许可：GPL-2.0-or-later。
 
@@ -8,7 +8,7 @@ P2 隔离候选：稳定身份和本人只读资料、积分、签到状态、�
 - WP OAuth Server 社区包 `oauth2-provider` **4.5.2**，启用 OAuth，关闭 JWT/OIDC。访问令牌长度设置为 **40–255**。
 - 子比 `zibll` **9.0** 的读取函数，业务时区 `Asia/Shanghai`。积分/签到开关按接口分别检查。
 - `users`、`duanap_hub_identities`、`oauth_authorization_codes`、`oauth_access_tokens` 必须是 InnoDB；插件验证引擎，不自动转换既有表。
-- 已在全新数据库、合成用户及完整子比 9.0 下通过读取、OAuth 和社交绑定隔离测试。社交 SDK 使用原装 Yurun OAuth Login 2.1.0，外部 HTTP 响应由私有测试夹具提供。**真实 QQ/GitHub/Gitee 授权、Redis 兼容与生产启用尚未验收。** PHP 8.1 最低版本仅声明兼容，未另行运行该版本。
+- 已在全新数据库、合成用户及完整子比 9.0 下通过读取、OAuth 和社交绑定隔离测试。社交 SDK 使用原装 Yurun OAuth Login 2.1.0，外部 HTTP 响应由私有测试夹具提供。**真实 QQ/GitHub/Gitee 授权、生产最终缓存组合与正式启用尚未验收。** Redis 的隔离候选验证见下文。PHP 8.1 最低版本仅声明兼容，未另行运行该版本。
 
 ## 配置与授权合同
 
@@ -85,7 +85,9 @@ P2-1 原始结果及 P2-2 结果见各阶段记录；P2-3 的完整主题、社�
 
 ## 默认关闭的统一签到
 
-WordPress 的 `DUANAP_HUB_CHECKIN_ENABLED=true` 才接管原生 `wp_ajax_user_checkin`；Hub 的 `HUB_CHECKIN_ENABLED=1` 是独立写入开关，默认值 0。升级需重新激活 Bridge 建立事件表。开关关闭时原生主题继续原有行为；已有回执的本人查询不受写入开关影响。检测到持久对象缓存、非 InnoDB 表、不兼容主题/时区、未审计签到业务钩子时拒绝统一签到，不宣称这些部署已通过。
+WordPress 的 `DUANAP_HUB_CHECKIN_ENABLED=true` 才接管原生 `wp_ajax_user_checkin`；Hub 的 `HUB_CHECKIN_ENABLED=1` 是独立写入开关，默认值 0。升级需重新激活 Bridge 建立事件表。开关关闭时原生主题继续原有行为；已有回执的本人查询不受写入开关影响。检测到未验收的持久对象缓存、非 InnoDB 表、不兼容主题/时区、未审计签到业务钩子时拒绝统一签到，不宣称这些部署已通过。
+
+0.3.1 提供严格默认关闭的 `redis-user-local-v1` 候选：仅接受来源/版本已核对的 Redis Object Cache 3.0.0，启动时将六个用户/业务缓存组设为不持久化，并核对实际运行分类。其他组仍可使用 Redis；子比共用元数据组会增加数据库读取。没有外部缓存标志时也必须确认实际使用 WordPress 内置缓存对象。完整配置、隔离验证及将来切换/回退边界见 [Redis 候选记录](../../../docs/P2-REDIS-2026-10-15.md)；不自动修改生产配置。
 
 | 本人接口 | 合同 |
 | --- | --- |

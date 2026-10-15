@@ -6,7 +6,7 @@ function duanap_hub_checkin_ready() {
     if(!defined('DUANAP_HUB_CHECKIN_ENABLED')||DUANAP_HUB_CHECKIN_ENABLED!==true)return new WP_Error('hub_checkin_disabled','签到写入尚未启用。',['status'=>503]);
     $ready=duanap_hub_zibll_ready();if(is_wp_error($ready))return $ready;
     if(!_pz('checkin_s')||!_pz('points_s')||!function_exists('zib_user_checkin'))return new WP_Error('hub_checkin_disabled','博客签到或积分功能未启用。',['status'=>503]);
-    if(wp_using_ext_object_cache())return new WP_Error('hub_checkin_cache_unverified','持久对象缓存尚未通过签到一致性验收。',['status'=>503]);
+    $cache=duanap_hub_checkin_cache_ready();if(is_wp_error($cache))return $cache;
     if(!($wpdb->dbh instanceof mysqli))return new WP_Error('hub_checkin_driver_unavailable','签到数据库驱动尚未验收。',['status'=>503]);
     $ready=duanap_hub_events_ready();if(is_wp_error($ready))return $ready;
     foreach([$wpdb->usermeta] as $table){
