@@ -21,6 +21,7 @@ def fixture(action,uid,extra=None):
 if not args.anonymous_only:
     if not args.wp_root: raise SystemExit('--wp-root is required for authenticated fixture tests')
     if fixture('verify',0)['home'] != base: raise SystemExit('Fixture root and HTTP home must match')
+    fixture('refresh-read-date',config['alice']['id'])
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl): return None
