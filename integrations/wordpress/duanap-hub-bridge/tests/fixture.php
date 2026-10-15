@@ -33,6 +33,12 @@ if ($action==='allocate-missing') {
 }
 if (!$user || !str_starts_with($user->user_login,'bridge-')) exit(1);
 switch ($action) {
+    case 'refresh-read-date':
+        // Read-suite data is reused across days; refresh only its marked Alice.
+        if($user->user_login!=='bridge-alice')exit(1);
+        $data=get_user_meta($id,'zib_other_data',true);if(!is_array($data)||!isset($data['points_record']))exit(1);
+        $data['checkin_detail']=[wp_date('Y-m-d')=>['points'=>5,'integral'=>2,'time'=>wp_date('Y-m-d H:i:s')]];
+        update_user_meta($id,'zib_other_data',$data);update_user_meta($id,'checkin_continuous_day',3);update_user_meta($id,'checkin_all_day',10);break;
     case 'install':duanap_hub_install_identity();break;
     case 'fail-code-delete':
         if ($wpdb->query("CREATE TRIGGER duanap_hub_fixture_code_failure BEFORE DELETE ON {$wpdb->prefix}oauth_authorization_codes FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic code delete failure'")===false) exit(1);
