@@ -42,7 +42,7 @@ function duanap_hub_social_config($provider){
     if(!_pz('oauth_'.$provider.'_s')||!is_string($config['appid'])||!preg_match('/\A[A-Za-z0-9_-]{1,191}\z/',$config['appid'])||!is_string($config['appkey'])||strlen($config['appkey'])<16||!empty($config['agent'])||_pz('oauth_agent','close')!=='close')throw new Duanap_Hub_Social_Exception('hub_social_unconfigured','第三方应用未配置或代理模式不受支持。',503);
     $local=defined('DUANAP_HUB_TEST_FIXTURE')&&DUANAP_HUB_TEST_FIXTURE&&wp_get_environment_type()==='development'&&wp_parse_url(home_url(),PHP_URL_HOST)==='127.0.0.1';
     $expected=home_url('/oauth/'.$provider.'/callback');
-    if($provider==='qq'&&function_exists('duanap_qq_relay_public_callback'))$expected=duanap_qq_relay_public_callback()??$expected;
+    if($provider==='qq'&&function_exists('duanap_qq_relay_public_callback'))$expected=duanap_qq_relay_public_callback($config['appid'])??$expected;
     if($config['backurl']!==$expected||(!$local&&wp_parse_url($config['backurl'],PHP_URL_SCHEME)!=='https'))throw new Duanap_Hub_Social_Exception('hub_callback_unavailable','回调必须为本站准确 HTTPS 地址。',503);
     if(!class_exists(duanap_hub_social_sdk_class($provider)))throw new Duanap_Hub_Social_Exception('hub_sdk_unavailable','主题 OAuth SDK 不可用。',503);
     return $config;

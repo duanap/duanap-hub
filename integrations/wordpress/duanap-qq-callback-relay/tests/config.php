@@ -2,24 +2,27 @@
 if(PHP_SAPI!=='cli'||count($argv)<3)exit(1);
 $root=realpath($argv[1]);$mode=$argv[2];
 if(!$root||!is_file($root.'/duanap-hub-fixture.marker')||trim(file_get_contents($root.'/duanap-hub-fixture.marker'))!=='isolated')exit(1);
-$urls=['valid'=>'https://audit.invalid/oauth/qq/callback','http'=>'http://audit.invalid/oauth/qq/callback','user'=>'https://name@audit.invalid/oauth/qq/callback','query'=>'https://audit.invalid/oauth/qq/callback?next=evil','fragment'=>'https://audit.invalid/oauth/qq/callback#x','port'=>'https://audit.invalid:443/oauth/qq/callback','path'=>'https://audit.invalid/not-callback'];
+$urls=['valid'=>'https://audit.invalid/oauth/qq/callback','different-app'=>'https://audit.invalid/oauth/qq/callback','missing-app-id'=>'https://audit.invalid/oauth/qq/callback','http'=>'http://audit.invalid/oauth/qq/callback','user'=>'https://name@audit.invalid/oauth/qq/callback','query'=>'https://audit.invalid/oauth/qq/callback?next=evil','fragment'=>'https://audit.invalid/oauth/qq/callback#x','port'=>'https://audit.invalid:443/oauth/qq/callback','path'=>'https://audit.invalid/not-callback'];
 if(isset($urls[$mode]))define('DUANAP_QQ_PUBLIC_CALLBACK',$urls[$mode]);elseif($mode!=='disabled')exit(1);
+if(isset($urls[$mode])&&$mode!=='missing-app-id')define('DUANAP_QQ_PUBLIC_APP_ID',$mode==='different-app'?'900000002':'900000001');
 $_SERVER['REMOTE_ADDR']='127.0.0.1';require $root.'/wp-load.php';
 if(!defined('DUANAP_HUB_TEST_FIXTURE')||!DUANAP_HUB_TEST_FIXTURE||wp_get_environment_type()!=='development'||!str_starts_with(DB_NAME,'hub_p2_audit_'))exit(1);
 $checks=[];
 function relay_check($name,$ok){global $checks;if(!$ok){fwrite(STDERR,'FAIL: '.$name."\n");exit(1);}$checks[]=$name;}
 relay_check('compatibility module loaded',function_exists('duanap_qq_relay_public_callback'));
 global $wpdb;$before=$wpdb->get_var("SELECT option_value FROM {$wpdb->options} WHERE option_name='zibll_options'");
-$callback=duanap_qq_relay_public_callback();
+$callback=duanap_qq_relay_public_callback('900000001');
 relay_check('only exact enabled HTTPS callback accepted',($mode==='valid')?($callback===$urls['valid']):($callback===null));
 $config=get_oauth_config('qq');relay_check('native QQ config uses intended URI',$config['backurl']===($callback??home_url('/oauth/qq/callback')));
 relay_check('other providers retain native callbacks',get_oauth_config('github')['backurl']===home_url('/oauth/github/callback')&&get_oauth_config('gitee')['backurl']===home_url('/oauth/gitee/callback'));
 relay_check('stored options unchanged',$before===$wpdb->get_var("SELECT option_value FROM {$wpdb->options} WHERE option_name='zibll_options'"));
 if($mode==='valid'){
-    $proxy=['oauth_agent'=>'proxy','oauth_qq_option'=>['backurl'=>'https://proxy.invalid/callback']];
+    $proxy=['oauth_agent'=>'proxy','oauth_qq_option'=>['appid'=>'900000001','backurl'=>'https://proxy.invalid/callback']];
     relay_check('global proxy configuration is untouched',duanap_qq_relay_options($proxy)===$proxy);
-    $proxy=['oauth_agent'=>'close','oauth_qq_option'=>['agent'=>true,'backurl'=>'https://proxy.invalid/callback']];
+    $proxy=['oauth_agent'=>'close','oauth_qq_option'=>['appid'=>'900000001','agent'=>true,'backurl'=>'https://proxy.invalid/callback']];
     relay_check('QQ proxy configuration is untouched',duanap_qq_relay_options($proxy)===$proxy);
+    $other=['oauth_qq_option'=>['appid'=>'900000002','backurl'=>home_url('/oauth/qq/callback')]];
+    relay_check('different QQ application never inherits public callback',duanap_qq_relay_options($other)===$other);
     class Relay_Test_Response {private $v;function __construct($v){$this->v=$v;}function body(){return is_string($this->v)?$this->v:json_encode($this->v);}function json($assoc=true){return $this->v;}function jsonp($assoc=true){return $this->v;}function httpCode(){return 200;}}
     class Relay_Test_HTTP {
         public $requests=[];public function __call($name,$args){return $this;}
