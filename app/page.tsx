@@ -7,6 +7,8 @@ import { getSiteSettings, getModules, listProjects, recentPublicEntries, isEnabl
 import { pageMetadata, safeJsonLd } from '@/lib/seo'
 import { SITE_BASE } from '@/lib/config'
 import { ENTRY_LABELS } from '@/lib/types'
+import { QQLoginLink } from '@/components/QQLoginLink'
+import { qqLoginDestination } from '@/lib/qq-login'
 
 export function generateMetadata(): Metadata {
   const site = getSiteSettings()
@@ -33,7 +35,9 @@ export default function HomePage() {
       <div className="hero-actions">
         {showProjects && <Link className="action-primary" href="/projects">探索作品 <span>↗</span></Link>}
         {isEnabled('about') && <Link className="action-secondary" href="/about">关于我</Link>}
+        <QQLoginLink />
       </div>
+      {!qqLoginDestination() && <p className="qq-login-status">QQ登录尚未开通，公开内容可直接浏览。</p>}
       <div className="contact-list">{site.githubUrl && <a href={site.githubUrl} target="_blank" rel="noopener noreferrer">GitHub ↗</a>}
         {site.publicEmail && <a href={'mailto:' + site.publicEmail}>公开邮箱</a>}{site.socialLinks.map((link, index) => <a href={link.url} key={index} target="_blank" rel="noopener noreferrer">{link.label}</a>)}</div>
     </section>

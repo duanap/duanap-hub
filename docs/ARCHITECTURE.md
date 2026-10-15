@@ -32,6 +32,8 @@ Core 拥有：公开首页与独立内容路由、duanap Studio、管理员独�
 
 未配置认证时，首页必须仍然正常 SSR；不能在公共页面 `layout` 的根级 await WordPress 登录/积分。
 
+QQ 申请准备入口是公开导航：`/login/qq` 在未开通时提供本地说明，不请求 WordPress。只有单独配置 `HUB_QQ_LOGIN_ENABLED=1` 及有效 `HUB_WORDPRESS_URL` 后，点击才跳转博客固定原生 `oauth/qq` 路径；不建立 Hub 会话，不启用 accounts/签到，不在主站实现第二套 QQ OAuth。该准备入口按用户要求在账号模块关闭时仍显示，属于申请阶段的明确例外；真实接入与审核仍需取得应用参数后验证。
+
 ## D. 运维和安全原则
 
 - 私有数据统一写入 `HUB_DATA_DIR`，不放进 Git、`public/` 或 Next.js 编译产物。

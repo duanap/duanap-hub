@@ -4,5 +4,5 @@ import { getSiteSettings } from '@/lib/db'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export default function robots():MetadataRoute.Robots{
-  return {rules:[{userAgent:'*',allow:'/',disallow:['/duanap','/api/','/account','/go/']}],sitemap:getSiteSettings().seoIndexable ? new URL('/sitemap.xml',SITE_BASE).href : undefined}
+  return {rules:[{userAgent:'*',allow:'/',disallow:['/duanap','/api/','/account','/login','/go/']}],sitemap:getSiteSettings().seoIndexable ? new URL('/sitemap.xml',SITE_BASE).href : undefined}
 }

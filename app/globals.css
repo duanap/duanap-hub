@@ -14,6 +14,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .brand-icon{display:inline-grid;place-items:center;width:36px;height:36px;flex:none;border-radius:12px;background:#1b2029;color:#fff;font-weight:800;font-size:20px;letter-spacing:-.08em}
 .site-nav{display:flex;align-items:center;gap:27px;font-size:13px;font-weight:600;color:#606875}
 .site-nav a:hover,.subtle-link:hover{color:#1e57b0}
+.qq-login-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;flex-shrink:0;line-height:1;gap:7px}
+.qq-login-link img{display:block;flex-shrink:0}
+.qq-login-compact{padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--white);color:var(--ink)}
+.qq-login-status{font-size:12px;line-height:1.7;color:var(--soft);margin:10px 0 0}
+.qq-login-notice{max-width:640px;line-height:1.8}
 .site-main{flex:1;padding-bottom:90px}
 .hero{padding:84px 0 66px;max-width:740px}
 .eyebrow{display:block;font-size:10px;font-weight:800;letter-spacing:.17em;color:#8290a2}
