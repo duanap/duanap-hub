@@ -32,6 +32,7 @@ function duanap_hub_install_social(){
       actor_id bigint(20) unsigned NOT NULL,
       actor_token_hash char(64) NOT NULL,
       expires_at bigint(20) unsigned NOT NULL,
+      authorization_query text DEFAULT NULL,
       PRIMARY KEY  (state_hash)
     ) $charset ENGINE=InnoDB;");
 }

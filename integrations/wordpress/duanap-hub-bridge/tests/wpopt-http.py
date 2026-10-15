@@ -3,6 +3,7 @@ import argparse,importlib.util,json,os,pathlib,socket,subprocess,time,urllib.req
 spec=importlib.util.spec_from_file_location('recovery_support',pathlib.Path(__file__).with_name('recovery-support.py'))
 support=importlib.util.module_from_spec(spec);spec.loader.exec_module(support)
 p=argparse.ArgumentParser();p.add_argument('--wp-root',required=True);p.add_argument('--php',default='php');p.add_argument('--config',required=True);p.add_argument('--cache-profile',action='store_true');p.add_argument('--cache-marker')
+p.add_argument('--suite',action='append',choices=['integration.py','oauth.py','social-http.py','checkin-http.py'])
 args=p.parse_args();os.umask(0o077);root=support.fixture_root(args.wp_root)
 support.assert_offline();support.preflight(root,args.php)
 config=pathlib.Path(args.config).absolute();value=json.loads(config.read_text())
@@ -33,7 +34,7 @@ try:
         try:urllib.request.urlopen(value['home'],timeout=1).close();ready=True;break
         except Exception:time.sleep(.2)
     if not ready:raise RuntimeError('Offline fixture did not become healthy')
-    for file in ['integration.py','oauth.py','social-http.py','checkin-http.py']:
+    for file in args.suite or ['integration.py','oauth.py','social-http.py','checkin-http.py']:
         command=['python3',str(tests/file),'--config',str(config),'--wp-root',str(root),'--php',args.php]
         r=subprocess.run(command,capture_output=True,text=True,timeout=180)
         log=root.parent/('wpopt-'+file+'.log');log.write_text(r.stdout+'\n'+r.stderr);log.chmod(0o600)

@@ -91,4 +91,9 @@ try{
     verify_social('claim write failure is refused',is_wp_error($result));
     verify_social('failed creation leaves no orphan account',(int)$wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->users}")===$before);
 }finally{$wpdb->query('DROP TRIGGER IF EXISTS hub_fixture_social_failure');}
+$config=duanap_hub_config();$continuation=['client_id'=>$config['client_id'],'redirect_uri'=>$config['callback'],'response_type'=>'code','scope'=>'basic','state'=>str_repeat('a',43),'code_challenge_method'=>'S256','code_challenge'=>str_repeat('b',43)];
+verify_social('stored continuation rebuilds only the local authorization route',str_starts_with(duanap_hub_authorization_return(wp_json_encode($continuation)),home_url('/oauth/authorize/').'?'));
+$rejected=true;
+foreach([['redirect_uri'=>'https://evil.invalid/callback'],['client_id'=>'another-client'],['state'=>[]],['returnTo'=>'https://evil.invalid/']] as $mutation)$rejected=$rejected&&is_wp_error(duanap_hub_authorization_return(wp_json_encode(array_replace($continuation,$mutation))));
+verify_social('changed or injected stored continuation cannot redirect the browser',$rejected);
 echo json_encode(['passed'=>count($passed),'checks'=>$passed,'productionDataUsed'=>false]);

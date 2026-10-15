@@ -1,8 +1,9 @@
 import { SITE_ORIGIN } from '@/lib/config'
+import { isEnabled } from '@/lib/db'
 
-// This entry delegates to the existing blog QQ flow. It neither creates a Hub
-// session nor enables account/points APIs. Set the flag only after configuring
-// and verifying a real QQ application on WordPress.
+// The separate entry flag never enables account/points APIs. With accounts
+// enabled, preserve the Hub PKCE transaction through the blog's QQ flow;
+// otherwise delegate to the existing native blog login only.
 function qqBlogUrl(): URL | null {
   try {
     const base = new URL(process.env.HUB_WORDPRESS_URL || '')
@@ -14,6 +15,7 @@ function qqBlogUrl(): URL | null {
 }
 export function qqLoginDestination(): string | null {
   if (process.env.HUB_QQ_LOGIN_ENABLED !== '1') return null
+  if (process.env.HUB_ACCOUNTS_ENABLED === '1' && isEnabled('accounts')) return '/api/auth/login?provider=qq'
   const base = qqBlogUrl()
   return base ? new URL('oauth/qq', base).href : null
 }

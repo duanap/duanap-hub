@@ -15,6 +15,20 @@ test('enabled account module starts isolated OAuth login without Studio permissi
   expect(target.searchParams.has('client_secret')).toBeFalsy()
 })
 
+test('QQ entry preserves the Hub authorization and refuses unknown login methods',async({request})=>{
+  const response=await request.get('/api/auth/login?provider=qq',{maxRedirects:0})
+  expect(response.status()).toBe(303)
+  const target=new URL(response.headers().location)
+  expect(target.searchParams.get('hub_login')).toBe('qq')
+  expect(target.searchParams.get('code_challenge_method')).toBe('S256')
+  expect(response.headers()['cache-control']).toContain('no-store')
+  for(const query of ['provider=github','provider=https%3A%2F%2Fevil.invalid','provider=qq&provider=qq'])expect((await request.get('/api/auth/login?'+query,{maxRedirects:0})).status()).toBe(400)
+  if(process.env.HUB_QQ_LOGIN_ENABLED==='1'){
+    const entry=await request.get('/login/qq?returnTo=https://evil.invalid',{maxRedirects:0})
+    expect(entry.status()).toBe(307);expect(entry.headers().location).toBe('/api/auth/login?provider=qq')
+  }
+})
+
 test('login callback creates private session and never grants Studio privileges',async({playwright})=>{
   const user=await playwright.request.newContext({baseURL:accountOrigin})
   const {me}=await loginAccount(user)

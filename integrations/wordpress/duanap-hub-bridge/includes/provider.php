@@ -95,6 +95,30 @@ function duanap_hub_protect_authorization() {
     nocache_headers();
     header('Cache-Control: private, no-store');
     header('X-Robots-Tag: noindex, nofollow');
+    $login=$request->query('hub_login');
+    if($login!==null){
+        if($login!=='qq'||$request->server('REQUEST_METHOD')!=='GET'||($request->request('hub_login')!==null&&$request->request('hub_login')!==$login)||$request->query('scope')!=='basic')duanap_hub_oauth_error('invalid_request');
+        if(!is_user_logged_in()){
+            $query=[];foreach(['client_id','redirect_uri','response_type','scope','state','code_challenge_method','code_challenge'] as $key)$query[$key]=$request->query($key);
+            try{duanap_hub_social_flow('qq',false,wp_json_encode($query));}
+            catch(Duanap_Hub_Social_Exception $error){duanap_hub_oauth_error($error->result->get_error_code(),$error->result->get_error_data()['status']??503);}
+            catch(Throwable $error){duanap_hub_oauth_error('temporarily_unavailable',503);}
+        }
+    }
+}
+
+// Only a validated Hub PKCE request may survive the separate QQ round trip.
+// Store parameters, never a caller-supplied return URL; rebuild at our origin.
+function duanap_hub_authorization_return($value){
+    if($value===null||$value==='')return null;
+    $invalid=new WP_Error('hub_invalid_continuation','主站授权请求已变化，请重新登录。',['status'=>400]);
+    if(!is_string($value)||strlen($value)>4096)return $invalid;
+    $query=json_decode($value,true);$config=duanap_hub_config();
+    $keys=['client_id','redirect_uri','response_type','scope','state','code_challenge_method','code_challenge'];
+    if(!is_array($query)||is_wp_error($config)||count($query)!==count($keys)||array_diff($keys,array_keys($query)))return $invalid;
+    foreach($query as $item)if(!is_string($item))return $invalid;
+    if($query['client_id']!==$config['client_id']||$query['redirect_uri']!==$config['callback']||$query['response_type']!=='code'||$query['scope']!=='basic'||$query['code_challenge_method']!=='S256'||!preg_match('/\A[A-Za-z0-9_-]{43}\z/',$query['code_challenge'])||!preg_match('/\A[A-Za-z0-9_-]{32,256}\z/',$query['state']))return $invalid;
+    return add_query_arg($query,home_url('/oauth/authorize/'));
 }
 
 function duanap_hub_exchange_token() {
