@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { getModules, getSiteSettings, isEnabled } from '@/lib/db'
 import { ThemeControl } from '@/components/ThemeControl'
+import { QQLoginLink } from '@/components/QQLoginLink'
 
 export function PublicShell({ children }: { children: ReactNode }) {
   const site = getSiteSettings()
@@ -23,6 +24,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
       <nav aria-label="主导航" className="site-nav">
         {sorted.filter(link=>link.enabled).map(link=><Link href={link.path} key={link.path}>{link.label}</Link>)}
         {process.env.HUB_ACCOUNTS_ENABLED==='1'&&isEnabled('accounts')&&<Link href="/account">账号</Link>}
+        <QQLoginLink compact />
         <ThemeControl />
       </nav>
     </header>
