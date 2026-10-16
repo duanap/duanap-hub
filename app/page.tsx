@@ -9,6 +9,8 @@ import { SITE_BASE } from '@/lib/config'
 import { ENTRY_LABELS } from '@/lib/types'
 import { QQLoginLink } from '@/components/QQLoginLink'
 import { qqLoginDestination } from '@/lib/qq-login'
+import { BlogWidget } from '@/components/BlogWidget'
+import { contentSnapshot,getContentSettings } from '@/lib/content'
 
 export function generateMetadata(): Metadata {
   const site = getSiteSettings()
@@ -42,6 +44,7 @@ export default function HomePage() {
         {site.publicEmail && <a href={'mailto:' + site.publicEmail}>公开邮箱</a>}{site.socialLinks.map((link, index) => <a href={link.url} key={index} target="_blank" rel="noopener noreferrer">{link.label}</a>)}</div>
     </section>
     {modules.map(module => {
+      if(module.id==='content')return <BlogWidget key="content" settings={getContentSettings()} initial={contentSnapshot()}/>
       if (module.id === 'about') return <section className="home-section" data-module="about" key="about">
         <div className="section-title"><div><span className="eyebrow">ABOUT ME</span><h2>关于我</h2></div><Link className="subtle-link" href="/about">完整介绍 ↗</Link></div>
         <div className="content-card markdown"><Markdown>{site.biography}</Markdown></div>

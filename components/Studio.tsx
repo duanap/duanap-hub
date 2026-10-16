@@ -7,12 +7,13 @@ import { MediaPicker } from './studio/MediaPicker'
 import { MediaPanel } from './studio/MediaPanel'
 import { BackupPanel } from './studio/BackupPanel'
 import { ThemeControl } from '@/components/ThemeControl'
+import type { ContentSettings,ContentSnapshot } from '@/lib/content-types'
 
-type Tab = 'overview' | 'projects' | 'site' | 'home' | 'seo' | 'modules' | 'system'
-const nav: [Tab, string][] = [['overview', '概览'], ['projects', '项目与公告'], ['site', '主页资料'], ['home', '首页编排'], ['seo', 'SEO 与备案'], ['modules', '模块管理'], ['system', '系统信息']]
+type Tab = 'overview' | 'projects' | 'site' | 'home' | 'content' | 'seo' | 'modules' | 'system'
+const nav: [Tab, string][] = [['overview', '概览'], ['projects', '项目与公告'], ['site', '主页资料'], ['home', '首页编排'], ['content','博客动态'], ['seo', 'SEO 与备案'], ['modules', '模块管理'], ['system', '系统信息']]
 const groups: { label: string; tabs: Tab[] }[] = [
   { label: '工作台', tabs: ['overview'] },
-  { label: '内容管理', tabs: ['projects', 'site', 'home', 'modules'] },
+  { label: '内容管理', tabs: ['projects', 'content', 'site', 'home', 'modules'] },
   { label: '站点管理', tabs: ['seo', 'system'] },
 ]
 
@@ -27,13 +28,16 @@ async function api<T>(url: string, method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', 
   return data as T
 }
 
-export function Studio({ initialSettings, initialModules, initialProjects, initialEntries }: {
+export function Studio({ initialSettings, initialModules, initialProjects, initialEntries,initialContentSettings,initialContentSnapshot }: {
   initialSettings: HubSettings; initialModules: ModuleState[]; initialProjects: Project[]; initialEntries: ProjectEntry[]
+  initialContentSettings:ContentSettings;initialContentSnapshot:ContentSnapshot
 }) {
   const [tab, setTab] = useState<Tab>('overview')
   const [settings, setSettings] = useState(initialSettings)
   const [savedSettings, setSavedSettings] = useState(initialSettings)
   const [modules, setModules] = useState(initialModules)
+  const [contentSettings,setContentSettings]=useState(initialContentSettings),[savedContentSettings,setSavedContentSettings]=useState(initialContentSettings),[contentData,setContentData]=useState(initialContentSnapshot)
+  const contentDirty=JSON.stringify(contentSettings)!==JSON.stringify(savedContentSettings)
   const [projects, setProjects] = useState(initialProjects)
   const [entries, setEntries] = useState(initialEntries)
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null)
@@ -69,7 +73,7 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
   const projectDirty = projectEditorOpen && JSON.stringify(draft) !== JSON.stringify(savedDraft)
   const entryDirty = projectEditorOpen && JSON.stringify(entryDraft) !== JSON.stringify(savedEntryDraft)
   const settingsDirty = JSON.stringify(settings) !== JSON.stringify(savedSettings)
-  const dirty = projectDirty || entryDirty || settingsDirty
+  const dirty = projectDirty || entryDirty || settingsDirty || contentDirty
 
   useEffect(() => {
     if (!dirty && !locked) return
@@ -103,13 +107,13 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
   }
   function changeTab(next: Tab) {
     if (next === tab || !confirmLeave()) return
-    closeProject(); setSettings(savedSettings)
+    closeProject(); setSettings(savedSettings);setContentSettings(savedContentSettings)
     setTab(next); setNotice(''); setError('')
   }
   function editProject(project?: Project) {
-    if (!confirmLeave(projectDirty || entryDirty || settingsDirty)) return
+    if (!confirmLeave(projectDirty || entryDirty || settingsDirty || contentDirty)) return
     const next = project ? editableProject(project) : { ...blankProject }
-    setSettings(savedSettings); setTab('projects'); setProjectEditorOpen(true)
+    setSettings(savedSettings);setContentSettings(savedContentSettings); setTab('projects'); setProjectEditorOpen(true)
     setActiveProjectId(project?.id ?? null); setDraft(next); setSavedDraft(next); resetEntry()
     setNotice(''); setError('')
   }
@@ -258,6 +262,18 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
         {['robots.txt', 'sitemap.xml', 'feed.xml'].map(file => <a key={file} href={'/' + file} target="_blank" rel="noopener noreferrer">{file} ↗</a>)}
       </div></section><div className="studio-form-bottom"><span className="draft-indicator">{settingsDirty ? '有未保存的修改' : ''}</span>
         <button type="button" className="action-primary" onClick={() => void saveSite()}>{busy ? '保存中…' : '保存 SEO 与备案'}</button></div>
+    </fieldset>}
+    {tab==='content'&&<fieldset className="studio-fieldset studio-grid-two" disabled={locked}>
+      <section className="studio-card"><h2>博客数据与同步</h2><p>仅同步公开摘要，正文和文章编辑仍在博客。</p><p>数据来源：{contentData.source||'尚未配置公开博客地址'}</p><p>最近成功同步：{contentData.syncedAt?new Date(contentData.syncedAt).toLocaleString('zh-CN'):'尚未同步'}</p><p role="status">{contentData.error||({unconfigured:'数据源尚未配置',empty:'暂无公开摘要',ready:'缓存可用',stale:'缓存已过期，等待更新',error:'同步暂不可用'}[contentData.status])}</p>
+        <label className="check-choice"><input type="checkbox" checked={modules.some(m=>m.id==='content'&&m.enabled)} onChange={()=>void toggleModule(modules.find(m=>m.id==='content')!)}/>启用博客动态</label>
+        <button type="button" className="action-secondary" disabled={!modules.some(m=>m.id==='content'&&m.enabled)||contentData.status==='unconfigured'} onClick={()=>void perform(async()=>{const data=await api<{snapshot:ContentSnapshot}>('/api/studio/content','POST',{});setContentData(data.snapshot);if(data.snapshot.error)throw Error(data.snapshot.error)},'博客摘要已同步')}>{busy?'同步中…':'立即同步博客'}</button><p className="form-hint">访问首页时按需检查更新，间隔 15 分钟；失败后保留缓存并稍后重试。可在模块管理调整首页位置。</p>
+      </section>
+      <section className="studio-card"><h2>展示设置</h2><div className="form-stack"><label className="field"><span>博客区域标题</span><input maxLength={80} value={contentSettings.title} onChange={e=>setContentSettings({...contentSettings,title:e.target.value})}/></label><label className="field"><span>博客区域说明</span><textarea maxLength={300} value={contentSettings.description} onChange={e=>setContentSettings({...contentSettings,description:e.target.value})}/></label>
+        <label className="field"><span>展示篇数</span><input type="number" min={1} max={12} value={contentSettings.limit} onChange={e=>setContentSettings({...contentSettings,limit:Number(e.target.value)})}/></label><label className="field"><span>文章卡片尺寸</span><select value={contentSettings.size} onChange={e=>setContentSettings({...contentSettings,size:e.target.value as ContentSettings['size']})}><option value="small">小卡片</option><option value="medium">中卡片</option><option value="large">大卡片</option></select></label><label className="field"><span>文章顺序</span><select value={contentSettings.order} onChange={e=>setContentSettings({...contentSettings,order:e.target.value as ContentSettings['order']})}><option value="newest">最新优先</option><option value="oldest">最早优先</option></select></label>
+      </div></section>
+      <section className="studio-card"><h2>分类筛选</h2><p className="form-hint">不选择则展示全部分类。筛选同样作用于综合 RSS。</p><div className="content-choices">{contentData.categories.map(c=><label className="check-choice" key={c.id}><input type="checkbox" checked={contentSettings.categoryIds.includes(c.id)} onChange={e=>setContentSettings({...contentSettings,categoryIds:e.target.checked?[...contentSettings.categoryIds,c.id]:contentSettings.categoryIds.filter(id=>id!==c.id)})}/>{c.name}</label>)}</div></section>
+      <section className="studio-card"><h2>精选文章</h2><p className="form-hint">最多精选 12 篇，按选择顺序置顶；仍遵循分类筛选。</p><div className="content-choices">{contentData.posts.map(p=><label className="check-choice" key={p.id}><input type="checkbox" checked={contentSettings.featuredIds.includes(p.id)} onChange={e=>setContentSettings({...contentSettings,featuredIds:e.target.checked?[...contentSettings.featuredIds,p.id]:contentSettings.featuredIds.filter(id=>id!==p.id)})}/>{p.title}</label>)}</div></section>
+      <div className="studio-form-bottom"><span className="draft-indicator">{contentDirty?'有未保存的修改':''}</span><button type="button" className="action-primary" onClick={()=>void perform(async()=>{const result=await api<{settings:ContentSettings}>('/api/studio/content','PUT',contentSettings);setContentSettings(result.settings);setSavedContentSettings(result.settings)},'博客展示设置已保存')}>保存博客展示</button></div>
     </fieldset>}
     {tab === 'modules' && <section className="studio-card"><div className="card-heading"><div><h2>模块管理</h2><p>启停公开模块，并调整它们的展示顺序。</p></div></div>
       <div className="module-list">{modules.map((module, index) => <div className="module-row" key={module.id}><div><strong>{module.name}</strong>

@@ -7,7 +7,7 @@ export const REGISTERED_MODULES: readonly ModuleDefinition[] = [
   { id: 'projects', name: '项目与作品', summary: '项目、版本和公告', stage: 1, defaultEnabled: true, available: true },
   { id: 'games', name: '游戏展示', summary: '项目中的游戏分类', stage: 1, defaultEnabled: true, available: true },
   { id: 'tools', name: '在线工具', summary: '轻量实用工具入口', stage: 1, defaultEnabled: true, available: true },
-  { id: 'content', name: '博客动态', summary: 'P3：WordPress 文章摘要', stage: 3, defaultEnabled: false, available: false },
+  { id: 'content', name: '博客动态', summary: '公开文章摘要、分类与综合 RSS；独立缓存', stage: 3, defaultEnabled: false, available: true },
   { id: 'accounts', name: '统一账号', summary: '博客登录与只读账号中心；需服务器配置', stage: 2, defaultEnabled: false, available: true },
   { id: 'edgeone', name: 'EdgeOne 数据', summary: 'P3：流量/缓存/安全数据', stage: 3, defaultEnabled: false, available: false }
 ]
