@@ -9,7 +9,7 @@ const baseURL = 'http://127.0.0.1:1027'
 export default defineConfig({
   testDir: './tests',
   testMatch: '**/*.spec.ts',
-  testIgnore: '**/accounts*.spec.ts',
+  testIgnore: ['**/accounts*.spec.ts','**/members*.spec.ts'],
   fullyParallel: false,
   workers: 1,
   timeout: 30_000,

@@ -1,6 +1,6 @@
 # 技术架构与运行时边界
 
-> 2026-10-16 运行状态：主站统一账号与博客 Provider/Bridge 已部署；首页 QQ 入口在账号开启时先建立 Hub PKCE 事务，再委托博客本应用 QQ，成功后续接本站授权。账号关闭时保留原生博客准备入口的兼容行为。没有新增 Hub QQ 协议实现，主域与博客 QQ 应用继续隔离。最新状态见 [P2 生产接入](P2-PRODUCTION-2026-10-16.md)。
+> 2026-10-16 身份方案更新：用户要求主站注册、密码和会话独立管理，关联博客后才开放博客签到/积分。新方案进入独立开发分支，功能开关默认关闭，当前生产仍为 Hub PKCE + 博客 Provider。博客仍是积分/签到权威；主域与博客 QQ 使用不同应用，跨应用自动发现只在双方返回同一有效 UnionID 且用户选择后执行。实现与回退边界见 [独立账号方案](P2-INDEPENDENT-ACCOUNTS.md)；现有生产状态见 [P2 部署记录](P2-PRODUCTION-2026-10-16.md)。
 
 ## A. Stable Core
 
@@ -17,7 +17,7 @@ Core 拥有：公开首页与独立内容路由、duanap Studio、管理员独�
 - `games`：从 `projects` 中筛选游戏类别；P3 才接战绩与角色服务。
 - `tools`：工具目录及逐个启用的独立工具；密码生成在浏览器本地执行。
 - `content`：P3 才接 WordPress 文章摘要；未配置不触发请求。
-- `accounts`：P2 优先免费 WordPress OAuth2 + S256 PKCE + Bridge 本人 API，浏览器不获得上游令牌；候选隔离验证见 `P2-COMPATIBILITY.md`，正式启用仍待联调。
+- `accounts`：主站本地身份、密码和普通会话独立保存；可选关联用 WordPress OAuth2 + S256 PKCE + Bridge 本人 API 读取积分、签到并提交唯一签到事件。博客仍是积分权威；普通账户不映射 Studio 管理员。新实现默认关闭，真实 QQ/UnionID 和博客账号关联须验收后开放。
 - `edgeone`：P3 服务端读 API，设置超时和带时间戳的缓存。
 - `bot`：P3 独立 QQ Bot 进程，只有绑定身份和业务 API，不直接写 WordPress 或游戏数据库。
 
@@ -28,13 +28,14 @@ Core 拥有：公开首页与独立内容路由、duanap Studio、管理员独�
 | 数据种类 | 权威写入方 |
 | --- | --- |
 | 页面、项目、公告、站点配置、SEO、仪表盘布局 | 主站 SQLite |
-| 用户、第三方身份、签到、积分、流水 | WordPress / 子比 + bridge 插件 |
+| 主站登录身份、主站密码/恢复密钥、普通主站会话 | 主站独立 `members.sqlite` |
+| 博客账号、QQ/GitHub/Gitee 原生绑定、签到、积分、流水 | WordPress / 子比 + bridge 插件 |
 | 游戏角色、牌局、战绩、修炼数值 | 对应游戏服务 |
 | EdgeOne / GitHub 指标 | 外部 API；主站仅缓存 |
 
 未配置认证时，首页必须仍然正常 SSR；不能在公共页面 `layout` 的根级 await WordPress 登录/积分。
 
-QQ 申请准备入口是公开导航：`/login/qq` 在未开通时提供本地说明，不请求 WordPress。只有单独配置 `HUB_QQ_LOGIN_ENABLED=1` 及有效 `HUB_WORDPRESS_URL` 后，点击才跳转博客固定原生 `oauth/qq` 路径；不建立 Hub 会话，不启用 accounts/签到，不在主站实现第二套 QQ OAuth。该准备入口按用户要求在账号模块关闭时仍显示，属于申请阶段的明确例外；真实接入与审核仍需取得应用参数后验证。
+新身份模式中，注册/密码/恢复及 QQ 登录都创建主站本地会话；主域 AppID/AppKey 由 `HUB_QQ_APP_ID` 和 `HUB_QQ_APP_KEY` 私下配置，回调固定 `/oauth/qq/callback`。Hub 调用 QQ 用户资料接口获取并允许用户显示昵称头像；AppKey 不进入博客配置。完成博客账号授权关联后，才可读取积分并签到。选择自动关联时只比较平台实际返回的同一 UnionID；无权限则要求手动授权博客账号。旧模式 `HUB_LOCAL_ACCOUNTS_ENABLED=0` 仍保留已有的博客原生登录，默认生产行为不变。新模式开关、模块开关和资料配置均各自单独校验，见 `P2-INDEPENDENT-ACCOUNTS.md`。
 
 ## D. 运维和安全原则
 
@@ -45,7 +46,7 @@ QQ 申请准备入口是公开导航：`/login/qq` 在未开通时提供本地�
 - Studio 与用户身份分权：主站后台管理员会话独立，P2 的普通用户 QQ 登录不会自动有后台权限。
 - 所有改写请求需身份鉴权与来源校验；OAuth 的 state、PKCE、精确 redirect_uri 均需在 P2 验证。
 - WordPress 积分必须使用唯一业务事件 ID 防重放；提交成功以权威服务确认结果为准。
-- P2 候选使用独立 `accounts.sqlite` 与普通用户 Cookie；服务器令牌/verifier 加密存储，业务请求不占用内容队列。默认关闭、恢复后清除本地普通认证数据，详见 `P2-ACCOUNTS-2026-10-14.md`。
+- 旧 P2 用户会话使用 `accounts.sqlite`；本地身份候选将其替换为单独 `members.sqlite`、独立普通用户 Cookie。业务备份不含身份库，身份库有单独离线备份/恢复命令。上游博客授权令牌仅加密存于本地主站关联记录，内容恢复后撤销令牌并要求重新授权。新模式默认关闭，见 `P2-INDEPENDENT-ACCOUNTS.md`。
 - 外部数据适配器应有超时、有限重试、明确显示过期或失败，不把失败当作 0。
 - 游戏角色 API 的权限和结算必须由游戏服务自身验证，不信任浏览器或机器人提供的玩家 ID。
 

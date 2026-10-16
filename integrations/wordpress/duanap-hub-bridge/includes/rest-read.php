@@ -16,7 +16,10 @@ function duanap_hub_read_response($request) {
     $user = $context['user'];
     $uid = duanap_hub_uid($user->ID);
     if (is_wp_error($uid)) return $uid;
-    return ['hub_uid'=>$uid, 'display_name'=>(string)$user->display_name, 'avatar_url'=>esc_url_raw(get_avatar_url($user->ID), ['http','https']), 'as_of'=>gmdate('c')];
+    $profile=['hub_uid'=>$uid, 'display_name'=>(string)$user->display_name, 'avatar_url'=>esc_url_raw(get_avatar_url($user->ID), ['http','https']), 'as_of'=>gmdate('c')];
+    $union=duanap_hub_qq_union_read($user->ID);
+    if($union)$profile['qq_union']=$union;
+    return $profile;
 }
 
 function duanap_hub_private_response($response, $server, $request) {

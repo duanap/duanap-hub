@@ -1,5 +1,5 @@
 import { AccountError,type AccountConfig } from './config'
-export type AccountIdentity={hubUid:string;displayName:string;avatarUrl:string;asOf:string}
+export type AccountIdentity={hubUid:string;displayName:string;avatarUrl:string;asOf:string;qq?:{realm:string;unionId:string}}
 export type Points={balance:number;asOf:string}
 export type Checkin={businessDate:string;timezone:string;checkedIn:boolean;continuousDays:number;totalDays:number;asOf:string}
 export type History={items:{delta:number;balanceAfter:number;reason:string;occurredAt:string}[];page:number;perPage:number;totalRetained:number;retentionLimit:number;asOf:string}
@@ -55,7 +55,12 @@ export async function readIdentity(config:AccountConfig,token:string):Promise<Ac
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(hubUid))throw invalid()
   if(avatarUrl){try{const url=new URL(avatarUrl);if(!['https:','http:'].includes(url.protocol)||url.username||url.password)throw invalid()}catch{throw invalid()}}
   // WordPress stores 250 characters; a character may occupy two UTF-16 units.
-  return {hubUid,displayName:text(p.display_name,500),avatarUrl,asOf:date(p.as_of)}
+  let qq:AccountIdentity['qq']
+  if(p.qq_union&&typeof p.qq_union==='object'&&!Array.isArray(p.qq_union)){
+    const union=p.qq_union as Record<string,unknown>
+    if(typeof union.realm==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(union.realm)&&typeof union.union_id==='string'&&/^[A-Za-z0-9_-]{16,128}$/.test(union.union_id))qq={realm:union.realm,unionId:union.union_id}
+  }
+  return {hubUid,displayName:text(p.display_name,500),avatarUrl,asOf:date(p.as_of),...(qq?{qq}:{})}
 }
 export async function readPoints(config:AccountConfig,token:string):Promise<Points>{
   const p=await provider(config,'wp-json/duanap-hub/v1/me/points',{headers:{Authorization:'Bearer '+token}})

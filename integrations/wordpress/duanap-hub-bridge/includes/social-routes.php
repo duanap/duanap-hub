@@ -61,8 +61,15 @@ function duanap_hub_social_flow($provider,$callback,$authorization=null){
     }
     $info=$sdk->getUserInfo();
     if(!is_array($info)||!$sdk->openid)throw new Duanap_Hub_Social_Exception('hub_profile_unavailable','第三方身份不可用。',503);
-    $result=duanap_hub_social_resolve(['provider'=>$provider,'app_id'=>$config['appid'],'subject'=>(string)$sdk->openid,'display_name'=>(string)($info['nickname']??$info['name']??$info['login']??''),'avatar_url'=>(string)($info['figureurl_qq_2']??$info['avatar_url']??'')],$actor);
+    $union=$provider==='qq'?duanap_hub_qq_union_capture($sdk,$config):null;
+    $result=duanap_hub_social_resolve(['provider'=>$provider,'app_id'=>$config['appid'],'subject'=>(string)$sdk->openid,'display_name'=>(string)($info['nickname']??$info['name']??$info['login']??''),'avatar_url'=>(string)($info['figureurl_qq_2']??$info['figureurl_qq_1']??$info['avatar_url']??'')],$actor);
     if(is_wp_error($result))throw new Duanap_Hub_Social_Exception($result->get_error_code(),$result->get_error_message(),$result->get_error_data()['status']??503);
+    if($provider==='qq'&&duanap_hub_qq_union_realm()!==''){
+        // Remove obsolete proof when permissions/identity change. Only a verified
+        // QQ token may create this metadata; never accept a browser-supplied ID.
+        if($union)update_user_meta($result['user_id'],'duanap_hub_qq_union',$union);
+        else delete_user_meta($result['user_id'],'duanap_hub_qq_union');
+    }
     $user=get_user_by('id',$result['user_id']);wp_set_current_user($user->ID);wp_set_auth_cookie($user->ID,false);do_action('wp_login',$user->user_login,$user);
     wp_safe_redirect($continuation??home_url('/hub-account-bindings'));exit;
 }

@@ -15,6 +15,7 @@ function qqBlogUrl(): URL | null {
 }
 export function qqLoginDestination(): string | null {
   if (process.env.HUB_QQ_LOGIN_ENABLED !== '1') return null
+  if (process.env.HUB_LOCAL_ACCOUNTS_ENABLED === '1') return '/api/member/qq'
   if (process.env.HUB_ACCOUNTS_ENABLED === '1' && isEnabled('accounts')) return '/api/auth/login?provider=qq'
   const base = qqBlogUrl()
   return base ? new URL('oauth/qq', base).href : null

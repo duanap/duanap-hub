@@ -2,7 +2,7 @@
 /**
  * Plugin Name: duanap Hub Bridge
  * Description: Independent Hub identity and protected read-only Zibll APIs.
- * Version: 0.3.3
+ * Version: 0.4.0
  * Requires PHP: 8.1
  * License: GPL-2.0-or-later
  */
@@ -14,6 +14,7 @@ require_once __DIR__.'/includes/permissions.php';
 require_once __DIR__.'/includes/zibll-adapter.php';
 require_once __DIR__.'/includes/rest-read.php';
 require_once __DIR__.'/includes/social-bindings.php';
+require_once __DIR__.'/includes/qq-union.php';
 require_once __DIR__.'/includes/social-routes.php';
 require_once __DIR__.'/includes/events.php';
 require_once __DIR__.'/includes/cache-policy.php';
