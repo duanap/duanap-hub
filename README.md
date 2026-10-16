@@ -1,6 +1,6 @@
 # duanap Hub
 
-> 一个小而美、可持续扩展的个人数字门户。**独立新项目 · P1 已部署（全新数据）**。
+> 一个小而美、可持续扩展的个人数字门户。**独立新项目 · P1 已部署（全新数据）· P2 账号与统一签到已启用，外部验收未完成**。
 
 `duanap.cn` 是个人品牌与作品的主要入口：个人介绍、项目/游戏介绍、手动维护的版本和公告、在线工具、SEO 与 RSS，以及轻量卡片化管理后台 `duanap Studio`。
 
@@ -10,9 +10,30 @@
 
 主站：[duanap.cn](https://duanap.cn/)；[www.duanap.cn](https://www.duanap.cn/) 跳转主域；后台：[Studio 登录](https://duanap.cn/duanap/login)。服务器构建、真实备份恢复、HTTPS、私有缓存头和 EdgeOne 静态缓存均已验证，见 [部署记录](docs/DEPLOYMENT-2026-10-13.md)。管理员凭据只在服务器私有环境维护。
 
-第二阶段接入 `blog.duanap.cn` 的 WordPress/子比用户与积分；第三阶段逐个接入游戏、QQ 机器人、博客文章及 EdgeOne/GitHub 数据。上述扩展服务在第一阶段**不是运行依赖**。
+第二阶段已接入 `blog.duanap.cn` 的 WordPress/子比用户与积分；第三阶段计划逐个接入游戏、QQ 机器人、博客文章及 EdgeOne/GitHub 数据。上述扩展服务**不是 Core 启动依赖**。
 
-2026-10-14 已完成 P2-1 Bridge 与 P2-2 登录/独立会话/只读账号中心的隔离候选，默认关闭且未生产发布。账号专项 23/23、Core 36/36、恢复 7/7；真实隔离 WordPress/Bridge HTTPS 链路 16 项通过。完整子比/QQ/Redis、绑定和统一签到仍待验收，详见 [P2-2 记录与配置](docs/P2-ACCOUNTS-2026-10-14.md)。账号测试使用 `npx playwright test -c playwright.accounts.config.ts`，不加入普通 Core 测试实例。
+### P2 当前生产状态（2026-10-16）
+
+[PR #7](https://github.com/duanap/duanap-hub/pull/7) 已合并到 main，合并提交为 `0eed9f34f2696cfeec12182eefd8f3a1bb37aad1`。这与实际运行版本分别记录：主站运行 `1c6c955`，Bridge **0.3.3** 部署文件摘要对应源码 `7cde48d`，未因后续 PHP 修正重复构建 Next.js。
+
+| 类别 | 已核对的状态与边界 |
+| --- | --- |
+| 已部署并启用 | Hub 普通用户账号、首页 QQ 登录入口、Hub 与 WordPress 统一签到；Provider/Bridge 已安装，普通用户与 Studio 独立鉴权 |
+| 已完成生产验证 | Provider/PKCE、本人积分/流水/绑定读取、权限与私有配置隔离及 Core/SEO 28 项；标记合成账号的登录奖励及博客/Hub 混合并发 17 项；Bridge 停用/重新激活演练 7 项；组合备份仅恢复至新库并对账一致 |
+| 隔离与本地证据 | 完整主题/WPOPT/真实独立 Redis 组合 275 项；Core 离线 43 项通过、2 项条件跳过；账号 34 项及写入关闭专项 1 项；备份 7 项、环境 1 项及构建/类型/结构检查通过。这些是既有记录，不代表真实第三方授权成功 |
+| 尚待外部验收 | QQ 仍受未开通/审核中限制；真实邮件送达、GitHub/Gitee 真实授权与绑定冲突未验收，P2 全阶段正式验收未完成 |
+
+QQ 入口先建立 Hub PKCE 事务，再委托博客本应用授权，成功后续接原事务；已验证跳转参数，尚无真实 QQ 授权成功证据。博客应用 `1905795653` 与主域应用 `102869604` 分离；主域 AppKey 未配置、QQ 回调转发关闭，不跨应用处理 code 或密钥。
+
+功能回退收敛账号、QQ 入口及签到开关，保留 WordPress 用户事务保护、用户/UID/绑定/业务账本与当前 Studio 新密码；不恢复旧余额数据库、旧密码或旧 Redis 用户缓存前缀。关闭 Bridge 统一签到会恢复主题原生处理，冻结全部签到还须另关原生签到。回退脚本仅完成只读演练，执行后需重新授权；不把备份恢复演练作为覆盖生产库的许可。
+
+完整证据与限制见 [10 月 16 日生产记录](docs/P2-PRODUCTION-2026-10-16.md)、[当前开发状态](docs/DEVELOPMENT-STATUS.md) 和 [分层验收清单](docs/ACCEPTANCE.md)。
+
+### 历史隔离候选（2026-10-14）
+
+以下为当日快照，不代表当前生产状态：2026-10-14 已完成 P2-1 Bridge 与 P2-2 登录/独立会话/只读账号中心的隔离候选，默认关闭且未生产发布。账号专项 23/23、Core 36/36、恢复 7/7；真实隔离 WordPress/Bridge HTTPS 链路 16 项通过。完整子比/QQ/Redis、绑定和统一签到仍待验收，详见 [P2-2 记录与配置](docs/P2-ACCOUNTS-2026-10-14.md)。
+
+账号测试使用 `npx playwright test -c playwright.accounts.config.ts`，不加入普通 Core 测试实例。
 
 ## 三阶段交付
 
@@ -111,10 +132,11 @@ Set-Location duanap-hub
 6. [本地、宝塔部署和迁移](docs/DEPLOYMENT.md)
 7. [验收清单](docs/ACCEPTANCE.md)
 8. [实际完成状态和待验证事项](docs/DEVELOPMENT-STATUS.md)
-9. [旧站源码核查与迁移准备](docs/MIGRATION-AUDIT.md)
+9. [P2 当前生产接入、验证与回退边界](docs/P2-PRODUCTION-2026-10-16.md)
+10. [旧站源码核查与迁移准备](docs/MIGRATION-AUDIT.md)
 
 ## 旧项目边界
 
-本仓库既不覆盖 `duanap/duanap-index`，也不覆盖 `duanap/index`；不连接生产 WordPress；初次启动不会导入生产账号、积分、文章或游戏数据。实际生产代码来源、数据库备份、子比版本及 OIDC 能力在迁移前必须只读核实。
+本仓库既不覆盖 `duanap/duanap-index`，也不覆盖 `duanap/index`。初次启动不会自动导入生产账号、积分、文章或游戏数据；P1 使用全新内容库的历史选择不变。当前 P2 已通过受控 Provider/Bridge 连接生产 WordPress，用户与积分仍以 WordPress 为权威，不复制到主站内容库。后续迁移仍须先只读核实来源、版本与一致备份；当前生产边界以 [10 月 16 日记录](docs/P2-PRODUCTION-2026-10-16.md) 为准。
 
 尚未选择开源许可证；公开源码不代表已经授予开源许可。许可证由项目所有者决定。
