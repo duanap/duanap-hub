@@ -130,6 +130,16 @@ export async function setMemberPassword(config:MemberConfig,current:MemberSessio
   return recovery
 }
 export type QQIdentity={appId:string;subject:string;realm:string;unionId:string;displayName:string;avatarUrl:string}
+export async function setMemberUsername(config:MemberConfig,current:MemberSession,username:string,password:unknown){
+  const db=database(config),row=db.prepare('SELECT username,password FROM members WHERE id=?').get(current.memberId) as {username:string;password:string|null}
+  if(row.password?!await passwordMatches(typeof password==='string'?password:'',row.password):now()-current.verifiedAt>300)throw new AccountError(403,'reauth_required','请验证主站密码，或重新使用 QQ 登录后修改用户名')
+  try{db.transaction(()=>{
+    if(!db.prepare('SELECT 1 FROM member_sessions WHERE hash=? AND member_id=? AND expires_at>? AND epoch=?').get(current.hash,current.memberId,now(),config.epoch))throw new AccountError(401,'member_session_changed','登录已失效')
+    const changed=db.prepare('UPDATE members SET username=? WHERE id=? AND username=? AND password IS ?').run(username,current.memberId,row.username,row.password)
+    if(changed.changes!==1)throw new AccountError(409,'member_changed','账号已变化，请刷新后重试')
+    db.prepare('DELETE FROM member_sessions WHERE member_id=? AND hash<>?').run(current.memberId,current.hash)
+  })()}catch(error){if((error as {code?:string}).code==='SQLITE_CONSTRAINT_UNIQUE')throw new AccountError(409,'username_unavailable','用户名不可用');throw error}
+}
 export function memberQQ(config:MemberConfig,id:string){return database(config).prepare('SELECT app_id appId,realm,union_id unionId FROM member_qq WHERE member_id=?').get(id) as {appId:string;realm:string;unionId:string}|undefined}
 export function memberQQVersion(config:MemberConfig,id:string){const row=database(config).prepare('SELECT qq_version n FROM members WHERE id=?').get(id) as {n:number}|undefined;if(!row)throw new AccountError(401,'member_unauthenticated','账号不可用');return row.n}
 function assertQQPassword(config:MemberConfig,current:MemberSession,proof:string){

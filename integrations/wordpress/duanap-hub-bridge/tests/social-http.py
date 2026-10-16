@@ -23,8 +23,11 @@ def begin(client,provider='qq',nonce=None):
     return status,urllib.parse.parse_qs(urllib.parse.urlparse(headers.get('Location','')).query).get('state',[''])[0]
 def callback(client,state,code,provider='qq'):
     return request(client,'/oauth/'+provider+'/callback/?'+urllib.parse.urlencode({'state':state,'code':code}))
-# An anonymous Hub login must return to the exact PKCE authorization after QQ,
-# rather than abandoning the Hub transaction at the blog bindings page.
+# Automatic linking discovers an existing blog QQ owner; it does not register
+# an extra blog user. Use the guarded social-sdk-fixture.php transport.
+existing_code='fixture_'+secrets.token_hex(12)
+seed=context();status,seed_state=begin(seed);status,headers,text=callback(seed,seed_state,existing_code)
+check('seed existing blog QQ through the native verified callback',status==302)
 hub=context();hub_verifier=secrets.token_urlsafe(40)
 hub_params={'client_id':config['clientId'],'redirect_uri':config['callback'],'response_type':'code','scope':'basic','state':secrets.token_urlsafe(32),'code_challenge_method':'S256','code_challenge':base64.urlsafe_b64encode(hashlib.sha256(hub_verifier.encode()).digest()).decode().rstrip('='),'hub_login':'qq'}
 status,headers,text=request(hub,'/oauth/authorize/?'+urllib.parse.urlencode(hub_params))
@@ -35,7 +38,7 @@ if status!=302 or not re.fullmatch('[0-9a-f]{64}',qq_state):
     print(json.dumps({'qqStartStatus':status,'errorCode':diagnostic,'redirectPath':urllib.parse.urlparse(headers.get('Location','')).path}))
 check('anonymous Hub QQ entry starts installed QQ SDK',status==302 and bool(re.fullmatch('[0-9a-f]{64}',qq_state)))
 check('QQ entry keeps its own application and callback',qq_query.get('client_id')==['900000001'] and qq_query.get('redirect_uri')==[base+'/oauth/qq/callback'])
-status,headers,text=callback(hub,qq_state,'fixture_'+secrets.token_hex(12))
+status,headers,text=callback(hub,qq_state,existing_code)
 continuation=urllib.parse.urlparse(headers.get('Location',''));continued=urllib.parse.parse_qs(continuation.query)
 check('QQ callback resumes original Hub PKCE request',status==302 and continuation.path.rstrip('/')=='/oauth/authorize' and all(continued.get(key)==[value] for key,value in hub_params.items() if key!='hub_login'))
 check('QQ continuation remains private','no-store' in headers.get('Cache-Control',''))
@@ -44,6 +47,30 @@ grant=urllib.parse.parse_qs(urllib.parse.urlparse(headers.get('Location','')).qu
 check('resumed request issues exact Hub callback',status==302 and headers.get('Location','').startswith(config['callback']+'?') and bool(grant))
 status,headers,text=request(context(),'/oauth/token/',{'grant_type':'authorization_code','code':grant,'code_verifier':hub_verifier,'client_id':config['clientId'],'client_secret':config['clientSecret'],'redirect_uri':config['callback']})
 check('resumed QQ login completes PKCE exchange',status==200 and bool(json.loads(text).get('access_token')))
+# A logged-in legacy browser must collect proof rather than bypassing QQ.
+subprocess.run([args.php,str(pathlib.Path(__file__).with_name('fixture.php')),args.wp_root,'social-clear-union','0',existing_code],check=True,capture_output=True)
+status,headers,text=request(seed,'/oauth/authorize/?'+urllib.parse.urlencode(hub_params))
+check('logged-in blog without UnionID starts QQ reauthorization without a binding nonce',status==302 and urllib.parse.urlparse(headers.get('Location','')).hostname=='graph.qq.com')
+stale_state=urllib.parse.parse_qs(urllib.parse.urlparse(headers['Location']).query)['state'][0]
+status,headers,text=callback(seed,stale_state,existing_code)
+check('legacy blog proof refresh resumes the original authorization',status==302 and urllib.parse.urlparse(headers.get('Location','')).path.rstrip('/')=='/oauth/authorize')
+# Unknown and permission-denied QQs return a bounded failure to the registered
+# main callback, without creating a blog account or changing native bindings.
+for fixture_code,reason in [('fixture_'+secrets.token_hex(12),'blog_qq_not_found'),('fixture_no_union_'+secrets.token_hex(12),'blog_qq_proof_missing')]:
+    stranger=seed if reason=='blog_qq_not_found' else context();status,headers,text=request(stranger,'/oauth/authorize/?'+urllib.parse.urlencode(hub_params))
+    state=urllib.parse.parse_qs(urllib.parse.urlparse(headers.get('Location','')).query)['state'][0]
+    status,headers,text=callback(stranger,state,fixture_code);target=urllib.parse.urlparse(headers.get('Location',''));failure=urllib.parse.parse_qs(target.query)
+    check('automatic QQ failure returns to exact registered callback '+reason,status==302 and headers.get('Location','').startswith(config['callback']+'?') and failure.get('error')==[reason] and failure.get('state')==[hub_params['state']] and 'no-store' in headers.get('Cache-Control',''))
+    count=subprocess.run([args.php,str(pathlib.Path(__file__).with_name('fixture.php')),args.wp_root,'social-count','0',fixture_code],check=True,capture_output=True,text=True)
+    check('automatic QQ failure leaves no new blog owner '+reason,json.loads(count.stdout)=={'claims':0,'nativeOwners':0})
+count=subprocess.run([args.php,str(pathlib.Path(__file__).with_name('fixture.php')),args.wp_root,'social-count','0',existing_code],check=True,capture_output=True,text=True)
+check('automatic reauthorization never replaces the logged-in blog QQ owner',json.loads(count.stdout)=={'claims':1,'nativeOwners':1})
+cancelled=context();status,headers,text=request(cancelled,'/oauth/authorize/?'+urllib.parse.urlencode(hub_params))
+state=urllib.parse.parse_qs(urllib.parse.urlparse(headers['Location']).query)['state'][0]
+status,headers,text=request(cancelled,'/oauth/qq/callback/?'+urllib.parse.urlencode({'state':state,'error':'access_denied'}))
+if status!=302 or urllib.parse.parse_qs(urllib.parse.urlparse(headers.get('Location','')).query).get('error')!=['blog_qq_cancelled']:
+    print(json.dumps({'cancelStatus':status,'error':urllib.parse.parse_qs(urllib.parse.urlparse(headers.get('Location','')).query).get('error'),'messageCancelled':'QQ 授权已取消' in text,'messageInvalid':'授权回调无效' in text}))
+check('cancelled blog QQ grant returns a distinct bounded failure',status==302 and urllib.parse.parse_qs(urllib.parse.urlparse(headers.get('Location','')).query).get('error')==['blog_qq_cancelled'])
 for key,value in [('redirect_uri','https://evil.invalid/callback'),('code_challenge_method','plain'),('hub_login','github')]:
     bad={**hub_params,key:value};status,headers,text=request(context(),'/oauth/authorize/?'+urllib.parse.urlencode(bad))
     check('QQ continuation rejects invalid '+key,status==400 and not headers.get('Location'))

@@ -108,7 +108,7 @@ function duanap_hub_social_login_verified($name,$user){
     if(($GLOBALS['duanap_hub_password_login']??0)===(int)$user->ID)update_user_meta($user->ID,'duanap_hub_password_proven',hash('sha256',$user->user_pass));
     unset($GLOBALS['duanap_hub_new_login'],$GLOBALS['duanap_hub_password_login']);
 }
-function duanap_hub_social_resolve($args,$actor=0){
+function duanap_hub_social_resolve($args,$actor=0,$allow_create=true){
     global $wpdb;
     $lock='';$new_id=0;$cache_id=0;
     $wpdb->suppress_errors(true);
@@ -139,6 +139,7 @@ function duanap_hub_social_resolve($args,$actor=0){
                 $id=(int)$legacy[0];if($actor&&$actor!==$id)throw new Duanap_Hub_Social_Exception('hub_binding_conflict','此身份已被另一账号绑定。');
             }elseif($actor)$id=$actor;
             else{
+                if(!$allow_create)throw new Duanap_Hub_Social_Exception('blog_qq_not_found','此 QQ 尚未关联博客账号。',404);
                 $name='hub_'.bin2hex(random_bytes(12));
                 $id=wp_create_user($name,wp_generate_password(64,true,true));
                 if(is_wp_error($id))throw new RuntimeException('User creation unavailable');

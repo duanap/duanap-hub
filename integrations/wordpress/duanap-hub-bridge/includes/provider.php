@@ -98,13 +98,22 @@ function duanap_hub_protect_authorization() {
     $login=$request->query('hub_login');
     if($login!==null){
         if($login!=='qq'||$request->server('REQUEST_METHOD')!=='GET'||($request->request('hub_login')!==null&&$request->request('hub_login')!==$login)||$request->query('scope')!=='basic')duanap_hub_oauth_error('invalid_request');
-        if(!is_user_logged_in()){
-            $query=[];foreach(['client_id','redirect_uri','response_type','scope','state','code_challenge_method','code_challenge'] as $key)$query[$key]=$request->query($key);
-            try{duanap_hub_social_flow('qq',false,wp_json_encode($query));}
-            catch(Duanap_Hub_Social_Exception $error){duanap_hub_oauth_error($error->result->get_error_code(),$error->result->get_error_data()['status']??503);}
-            catch(Throwable $error){duanap_hub_oauth_error('temporarily_unavailable',503);}
-        }
+        // The blog browser may belong to a different QQ. Verify QQ through its
+        // own app instead of treating an existing WordPress login as consent.
+        $query=[];foreach(['client_id','redirect_uri','response_type','scope','state','code_challenge_method','code_challenge'] as $key)$query[$key]=$request->query($key);
+        try{duanap_hub_social_flow('qq',false,wp_json_encode($query));}
+        catch(Throwable $error){duanap_hub_authorization_failure(wp_json_encode($query),'blog_qq_unavailable');}
     }
+}
+
+function duanap_hub_authorization_failure($authorization,$reason){
+    $return=duanap_hub_authorization_return($authorization);
+    if(is_wp_error($return)||!$return)duanap_hub_oauth_error('invalid_request');
+    parse_str(wp_parse_url($return,PHP_URL_QUERY),$query);
+    $allowed=['blog_qq_not_found','blog_qq_proof_missing','blog_qq_conflict','blog_qq_unavailable','blog_qq_cancelled'];
+    if(!in_array($reason,$allowed,true))$reason='blog_qq_unavailable';
+    // Exact registered callback only; no caller-controlled redirect destination.
+    wp_redirect(add_query_arg(['state'=>$query['state'],'error'=>$reason],$query['redirect_uri']),302);exit;
 }
 
 // Only a validated Hub PKCE request may survive the separate QQ round trip.
