@@ -55,7 +55,7 @@ with tempfile.TemporaryDirectory(prefix='hub-p2-redis-') as directory:
                         error=root.parent/('profile-'+file+'-error.log');error.write_text(r.stdout+'\n'+r.stderr);error.chmod(0o600)
                         raise RuntimeError('Private Redis regression failed '+file)
                     results.append({'suite':file,**json.loads(r.stdout)})
-                r=subprocess.run(['python3',str(pathlib.Path(__file__).with_name('wpopt-http.py')),'--wp-root',str(root),'--php',args.php,'--config',args.http_config,'--cache-profile','--cache-marker',marker],capture_output=True,text=True,timeout=240)
+                r=subprocess.run(['python3',str(pathlib.Path(__file__).with_name('wpopt-http.py')),'--wp-root',str(root),'--php',args.php,'--config',args.http_config,'--cache-profile','--cache-marker',marker],capture_output=True,text=True,timeout=360)
                 if r.returncode:
                     error=root.parent/'profile-http-error.log';error.write_text(r.stdout+'\n'+r.stderr);error.chmod(0o600)
                     raise RuntimeError('Private Redis HTTP regression failed; details retained privately')

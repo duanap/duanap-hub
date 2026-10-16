@@ -1,5 +1,7 @@
 # 技术架构与运行时边界
 
+> 2026-10-16 运行状态：主站统一账号与博客 Provider/Bridge 已部署；首页 QQ 入口在账号开启时先建立 Hub PKCE 事务，再委托博客本应用 QQ，成功后续接本站授权。账号关闭时保留原生博客准备入口的兼容行为。没有新增 Hub QQ 协议实现，主域与博客 QQ 应用继续隔离。最新状态见 [P2 生产接入](P2-PRODUCTION-2026-10-16.md)。
+
 ## A. Stable Core
 
 `duanap.cn`：Next.js App Router + SQLite + 内置模块注册表。Core 必须独立于 WordPress、EdgeOne、GitHub、QQ 机器人和小游戏服务运行。

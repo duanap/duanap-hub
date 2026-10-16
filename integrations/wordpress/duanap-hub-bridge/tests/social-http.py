@@ -23,6 +23,30 @@ def begin(client,provider='qq',nonce=None):
     return status,urllib.parse.parse_qs(urllib.parse.urlparse(headers.get('Location','')).query).get('state',[''])[0]
 def callback(client,state,code,provider='qq'):
     return request(client,'/oauth/'+provider+'/callback/?'+urllib.parse.urlencode({'state':state,'code':code}))
+# An anonymous Hub login must return to the exact PKCE authorization after QQ,
+# rather than abandoning the Hub transaction at the blog bindings page.
+hub=context();hub_verifier=secrets.token_urlsafe(40)
+hub_params={'client_id':config['clientId'],'redirect_uri':config['callback'],'response_type':'code','scope':'basic','state':secrets.token_urlsafe(32),'code_challenge_method':'S256','code_challenge':base64.urlsafe_b64encode(hashlib.sha256(hub_verifier.encode()).digest()).decode().rstrip('='),'hub_login':'qq'}
+status,headers,text=request(hub,'/oauth/authorize/?'+urllib.parse.urlencode(hub_params))
+qq_query=urllib.parse.parse_qs(urllib.parse.urlparse(headers.get('Location','')).query);qq_state=qq_query.get('state',[''])[0]
+if status!=302 or not re.fullmatch('[0-9a-f]{64}',qq_state):
+    try:diagnostic=json.loads(text).get('error','')
+    except Exception:diagnostic='non-json'
+    print(json.dumps({'qqStartStatus':status,'errorCode':diagnostic,'redirectPath':urllib.parse.urlparse(headers.get('Location','')).path}))
+check('anonymous Hub QQ entry starts installed QQ SDK',status==302 and bool(re.fullmatch('[0-9a-f]{64}',qq_state)))
+check('QQ entry keeps its own application and callback',qq_query.get('client_id')==['900000001'] and qq_query.get('redirect_uri')==[base+'/oauth/qq/callback'])
+status,headers,text=callback(hub,qq_state,'fixture_'+secrets.token_hex(12))
+continuation=urllib.parse.urlparse(headers.get('Location',''));continued=urllib.parse.parse_qs(continuation.query)
+check('QQ callback resumes original Hub PKCE request',status==302 and continuation.path.rstrip('/')=='/oauth/authorize' and all(continued.get(key)==[value] for key,value in hub_params.items() if key!='hub_login'))
+check('QQ continuation remains private','no-store' in headers.get('Cache-Control',''))
+status,headers,text=request(hub,continuation.path+'?'+continuation.query)
+grant=urllib.parse.parse_qs(urllib.parse.urlparse(headers.get('Location','')).query).get('code',[''])[0]
+check('resumed request issues exact Hub callback',status==302 and headers.get('Location','').startswith(config['callback']+'?') and bool(grant))
+status,headers,text=request(context(),'/oauth/token/',{'grant_type':'authorization_code','code':grant,'code_verifier':hub_verifier,'client_id':config['clientId'],'client_secret':config['clientSecret'],'redirect_uri':config['callback']})
+check('resumed QQ login completes PKCE exchange',status==200 and bool(json.loads(text).get('access_token')))
+for key,value in [('redirect_uri','https://evil.invalid/callback'),('code_challenge_method','plain'),('hub_login','github')]:
+    bad={**hub_params,key:value};status,headers,text=request(context(),'/oauth/authorize/?'+urllib.parse.urlencode(bad))
+    check('QQ continuation rejects invalid '+key,status==400 and not headers.get('Location'))
 code='fixture_'+secrets.token_hex(12)
 alice=context();status,state=begin(alice);check('native URL delegates protected authorization',status==302 and bool(re.fullmatch('[0-9a-f]{64}',state or '')))
 status,headers,text=callback(alice,'0'*64,code);check('forged state refused',status==400)
