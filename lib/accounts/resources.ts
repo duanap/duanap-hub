@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { AccountError,accountConfig,assertAccountConfig } from './config'
-import { currentAccount,csrfToken,privateHeaders,accountFailure } from './session'
+import { currentAccount,accountCsrf,privateHeaders,accountFailure } from './session'
 import { deleteAccountSession } from './store'
 import { readIdentity,readPoints,readCheckin,readHistory,readBindings } from './wordpress'
 
@@ -12,7 +12,7 @@ export async function accountResource(request:Request,kind:'me'|'points'|'checki
       const identity=await readIdentity(config,current.accessToken)
       if(identity.hubUid!==current.hubUid)throw new AccountError(401,'identity_changed','账号授权已变化，请重新登录')
       let data:unknown
-      if(kind==='me')data={user:identity,csrfToken:csrfToken(config,current),expiresAt:current.expiresAt,blogUrl:config.base.href}
+      if(kind==='me'){const {qq:_privateQQUnion,...user}=identity;data={user,csrfToken:accountCsrf(config,current),expiresAt:current.expiresAt,blogUrl:config.base.href}}
       else if(kind==='points')data=await readPoints(config,current.accessToken)
       else if(kind==='checkin')data={...await readCheckin(config,current.accessToken),canCheckin:process.env.HUB_CHECKIN_ENABLED==='1'}
       else if(kind==='bindings'){

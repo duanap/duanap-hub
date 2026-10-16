@@ -4,9 +4,12 @@ import { NextResponse } from 'next/server'
 import { accountConfig,accountReturnTo,AccountError } from '@/lib/accounts/config'
 import { AUTH_COOKIE,authTransactionCookie,cookieOptions,privateHeaders,accountFailure } from '@/lib/accounts/session'
 import { beginAuthorization } from '@/lib/accounts/store'
+import { memberMode } from '@/lib/accounts/member-store'
+import { SITE_ORIGIN } from '@/lib/config'
 export const runtime='nodejs'
 export async function GET(request:Request){
   try{
+    if(memberMode())return NextResponse.redirect(SITE_ORIGIN+'/account',303)
     if(request.headers.get('sec-fetch-site')==='cross-site')throw new AccountError(403,'invalid_source','请从主站进入登录')
     const config=accountConfig(),url=new URL(request.url)
     if(url.searchParams.getAll('returnTo').length>1)throw new AccountError(400,'invalid_return','返回地址无效')

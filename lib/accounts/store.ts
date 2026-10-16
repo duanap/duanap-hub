@@ -51,13 +51,13 @@ function open<T>(config:AccountConfig,context:string,value:string):T{
     return JSON.parse(Buffer.concat([cipher.update(data.subarray(28)),cipher.final()]).toString('utf8')) as T
   }catch{throw new AccountError(503,'account_storage_unavailable','账号凭据暂不可用，请重新登录')}
 }
-export function beginAuthorization(config:AccountConfig,browser:string,returnTo:string){
+export function beginAuthorization(config:AccountConfig,browser:string,returnTo:string,member?:{memberId:string;sessionHash:string;automatic:boolean;bindingVersion:number}){
   const db=database(config),browserHash=hashAccountToken(browser)
   const count=db.prepare('SELECT COUNT(*) AS n FROM auth_transactions WHERE browser_hash=?').get(browserHash) as {n:number}
   const total=db.prepare('SELECT COUNT(*) AS n FROM auth_transactions').get() as {n:number}
   if(count.n>=16||total.n>=1000)throw new AccountError(429,'authorization_limit','登录请求过多，请稍后再试')
   const state=randomBytes(32).toString('base64url'),verifier=randomBytes(32).toString('base64url'),hash=hashAccountToken(state)
-  db.prepare('INSERT INTO auth_transactions VALUES(?,?,?,?,?)').run(hash,browserHash,now()+300,config.epoch,seal(config,'auth:'+hash,{verifier,returnTo}))
+  db.prepare('INSERT INTO auth_transactions VALUES(?,?,?,?,?)').run(hash,browserHash,now()+300,config.epoch,seal(config,'auth:'+hash,{verifier,returnTo,member}))
   return {state,challenge:createHash('sha256').update(verifier).digest('base64url')}
 }
 export function consumeAuthorization(config:AccountConfig,value:string,browser:string){
@@ -68,7 +68,7 @@ export function consumeAuthorization(config:AccountConfig,value:string,browser:s
     return row
   })()
   if(!row)throw new AccountError(401,'invalid_authorization','授权已失效，请重新登录')
-  return open<{verifier:string;returnTo:string}>(config,'auth:'+hash,row.payload)
+  return open<{verifier:string;returnTo:string;member?:{memberId:string;sessionHash:string;automatic:boolean;bindingVersion:number}}>(config,'auth:'+hash,row.payload)
 }
 export type AccountSession={hash:string;id:string;hubUid:string;createdAt:number;expiresAt:number;accessToken:string;identity:AccountIdentity}
 type Row={hash:string;id:string;hub_uid:string;created_at:number;expires_at:number;payload:string}

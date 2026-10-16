@@ -106,3 +106,14 @@ test('offline content restore invalidates separate account sessions and auth tra
   assert.equal(result.status,0,result.stderr)
   for(const suffix of ['','-wal','-shm'])assert.equal(existsSync(path.join(target,'accounts.sqlite'+suffix)),false,'old local auth data must not survive content restore')
 })
+
+test('content restore retains independent users and blog mappings while invalidating access',()=>{
+  const folder=mkdtempSync(path.join(os.tmpdir(),'hub-members-content-')),target=path.join(folder,'data');mkdirSync(target)
+  writeFileSync(path.join(target,'hub.sqlite'),database('原作品'))
+  const member=new Database(path.join(target,'members.sqlite'))
+  member.exec("PRAGMA user_version=1;CREATE TABLE members(id TEXT,password TEXT,recovery_hash TEXT);INSERT INTO members VALUES('local-user','salted-password-hash','recovery-hash');CREATE TABLE member_sessions(hash TEXT);INSERT INTO member_sessions VALUES('session');CREATE TABLE member_flows(hash TEXT);INSERT INTO member_flows VALUES('flow');CREATE TABLE member_attempts(key TEXT);CREATE TABLE member_blogs(member_id TEXT,blog_uid TEXT,payload TEXT,authorized INTEGER);INSERT INTO member_blogs VALUES('local-user','blog-user','private-token',1);");member.close()
+  const input=path.join(folder,'backup.hub.gz');writeFileSync(input,encodeBackup(database(),[]))
+  const result=spawnSync(process.execPath,['scripts/restore-backup.mjs','--input',input,'--data-dir',target,'--confirm-restore'],{encoding:'utf8'});assert.equal(result.status,0,result.stderr)
+  const restored=new Database(path.join(target,'members.sqlite'),{readonly:true})
+  try{assert.deepEqual(restored.prepare('SELECT * FROM members').get(),{id:'local-user',password:'salted-password-hash',recovery_hash:'recovery-hash'});assert.deepEqual(restored.prepare('SELECT * FROM member_blogs').get(),{member_id:'local-user',blog_uid:'blog-user',payload:'',authorized:0});assert.equal(restored.prepare('SELECT count(*) n FROM member_sessions').get().n,0);assert.equal(restored.prepare('SELECT count(*) n FROM member_flows').get().n,0)}finally{restored.close()}
+})
