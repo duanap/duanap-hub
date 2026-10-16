@@ -5,7 +5,7 @@ import { loginAttemptKey } from '@/lib/admin-auth'
 import { AccountError,accountConfig } from '@/lib/accounts/config'
 import { accountFailure,cookieOptions,privateHeaders } from '@/lib/accounts/session'
 import { MEMBER_COOKIE,currentMember,guardMemberMutation,guardMemberOrigin } from '@/lib/accounts/member-session'
-import { authenticateMember,memberBlog,memberById,memberConfig,memberCsrf,memberQQ,memberQQVersion,memberSessions,memberThrottle,recoverMember,registerMember,removeMemberSession,setMemberPassword,unlinkMemberBlog,unlinkMemberQQ,updateMemberProfile,validPassword,validUsername,verifyMemberQQPassword } from '@/lib/accounts/member-store'
+import { authenticateMember,memberBlog,memberById,memberConfig,memberCsrf,memberQQ,memberQQVersion,memberSessions,memberThrottle,recoverMember,registerMember,removeMemberSession,setMemberPassword,setMemberUsername,unlinkMemberBlog,unlinkMemberQQ,updateMemberProfile,validPassword,validUsername,verifyMemberQQPassword } from '@/lib/accounts/member-store'
 import { beginQQAuthorization,mainQQConfigured,mainQQAutoLinkConfigured } from '@/lib/accounts/member-qq'
 import { beginBlogLink,revokeLinkedBlogSession } from '@/lib/accounts/blog-link'
 import { deleteAccountSession,findAccountSession } from '@/lib/accounts/store'
@@ -25,9 +25,9 @@ export async function GET(request:Request,context:Context){
     if(action==='qq'){
       if(request.headers.get('sec-fetch-site')==='cross-site')throw new AccountError(403,'invalid_source','请从主站进入 QQ 登录')
       const query=new URL(request.url).searchParams
-      if([...query.keys()].some(k=>k!=='linkBlog')||query.getAll('linkBlog').length>1||(query.has('linkBlog')&&query.get('linkBlog')!=='1'))throw new AccountError(400,'invalid_request','QQ 登录参数无效')
+      if([...query.keys()].some(k=>k!=='linkBlog')||query.getAll('linkBlog').length>1||(query.has('linkBlog')&&!['0','1'].includes(query.get('linkBlog')!)))throw new AccountError(400,'invalid_request','QQ 登录参数无效')
       memberThrottle(config,'qq:'+loginAttemptKey(request),30,900)
-      return await beginQQAuthorization(query.get('linkBlog')==='1')
+      return await beginQQAuthorization(query.get('linkBlog')!=='0')
     }
     if(action==='status')return json({qqConfigured:mainQQConfigured(),qqAutoLinkConfigured:mainQQAutoLinkConfigured()})
     const current=await currentMember(config)
@@ -73,6 +73,10 @@ export async function POST(request:Request,context:Context){
     }
     if(action==='password'){
       const p=await body(request);onlyKeys(p,['oldPassword','password']);const recovery=await setMemberPassword(config,current,p.oldPassword,validPassword(p.password));return json({ok:true,recovery})
+    }
+    if(action==='username'){
+      const p=await body(request);onlyKeys(p,['username','password']);memberThrottle(config,'username:'+current.memberId,10,900)
+      await setMemberUsername(config,current,validUsername(p.username),p.password);return json({ok:true})
     }
     if(action==='qq/connect'){
       const p=await body(request);onlyKeys(p,['linkBlog','password']);const qqVersion=memberQQVersion(config,current.memberId);let credentialProof:string|undefined

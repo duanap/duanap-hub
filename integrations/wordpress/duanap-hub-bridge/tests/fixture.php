@@ -8,9 +8,13 @@ require $root.'/wp-load.php';
 if (!defined('DUANAP_HUB_TEST_FIXTURE') || !DUANAP_HUB_TEST_FIXTURE || wp_get_environment_type() !== 'development' || !str_starts_with(DB_NAME,'hub_p2_audit_')) exit(1);
 $action=$argv[2]; $id=(int)$argv[3]; $user=get_user_by('id',$id);
 if ($action==='verify') { echo json_encode(['fixture'=>true,'home'=>get_option('home')]);exit; }
-if ($action==='social-count') {
+if (in_array($action,['social-count','social-clear-union'],true)) {
     $code=$argv[4]??'';if(!preg_match('/\Afixture_[a-z0-9_]{1,100}\z/',$code))exit(1);
     global $wpdb;$subject=strtoupper(md5($code));$key=duanap_hub_social_key('qq','900000001',$subject);
+    if($action==='social-clear-union'){
+        $owner=$wpdb->get_var($wpdb->prepare("SELECT wp_user_id FROM {$wpdb->prefix}duanap_hub_social WHERE identity_key=%s",$key));
+        if(!$owner)exit(1);delete_user_meta((int)$owner,'duanap_hub_qq_union');echo '{"cleared":true}';exit;
+    }
     echo json_encode(['claims'=>(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}duanap_hub_social WHERE identity_key=%s AND wp_user_id IS NOT NULL",$key)),'nativeOwners'=>(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(DISTINCT user_id) FROM {$wpdb->usermeta} WHERE meta_key='oauth_qq_openid' AND BINARY meta_value=%s",$subject))]);exit;
 }
 if ($action==='create') {

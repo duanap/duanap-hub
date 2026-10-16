@@ -30,7 +30,7 @@ function duanap_hub_social_flow($provider,$callback,$authorization=null){
     if(!$callback){
         $continuation=duanap_hub_authorization_return($authorization);
         if(is_wp_error($continuation))throw new Duanap_Hub_Social_Exception('hub_invalid_continuation','主站授权请求无效。',400);
-        if($actor){
+        if($actor&&!$continuation){
             if(!duanap_hub_social_recent($actor))throw new Duanap_Hub_Social_Exception('hub_reauth_required','请先在博客重新登录，再绑定平台。',403);
             if(!wp_verify_nonce($_GET['_hub_nonce']??'','hub_bind_'.$provider))throw new Duanap_Hub_Social_Exception('hub_invalid_nonce','绑定请求校验失败。',403);
         }
@@ -44,7 +44,7 @@ function duanap_hub_social_flow($provider,$callback,$authorization=null){
         session_write_close();wp_redirect($url,302);exit;
     }
     $state=$_GET['state']??'';$code=$_GET['code']??'';
-    if(!is_string($state)||!preg_match('/\A[0-9a-f]{64}\z/',$state)||!is_string($code)||strlen($code)>1024||$code==='')throw new Duanap_Hub_Social_Exception('hub_invalid_state','授权回调无效。',400);
+    if(!is_string($state)||!preg_match('/\A[0-9a-f]{64}\z/',$state))throw new Duanap_Hub_Social_Exception('hub_invalid_state','授权回调无效。',400);
     $hash=hash('sha256',$state);
     if($wpdb->query('START TRANSACTION')===false)throw new RuntimeException('Unavailable');
     $row=$wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}duanap_hub_social_transactions WHERE state_hash=%s AND browser_hash=%s AND provider=%s AND expires_at>%d FOR UPDATE",$hash,$browser,$provider,time()),ARRAY_A);
@@ -54,6 +54,12 @@ function duanap_hub_social_flow($provider,$callback,$authorization=null){
     if($row['app_hash']!==duanap_hub_social_app_hash($config)||(int)$row['actor_id']!==$actor||!hash_equals($row['actor_token_hash'],hash('sha256',$token)))throw new Duanap_Hub_Social_Exception('hub_actor_changed','账号或应用已变化，请重新授权。',403);
     $continuation=duanap_hub_authorization_return($row['authorization_query']??null);
     if(is_wp_error($continuation))throw new Duanap_Hub_Social_Exception('hub_invalid_continuation','主站授权请求已变化，请重新登录。',400);
+    try{
+    // WordPress parse_request removes $_GET['error']; inspect the original
+    // query only after consuming the browser-bound authorization transaction.
+    $callback_query=[];parse_str($_SERVER['QUERY_STRING']??'',$callback_query);
+    if(array_key_exists('error',$callback_query))throw new Duanap_Hub_Social_Exception('blog_qq_cancelled','QQ 授权已取消。',400);
+    if(!is_string($code)||strlen($code)>1024||$code==='')throw new Duanap_Hub_Social_Exception('hub_invalid_state','QQ 授权未完成。',400);
     $sdk=duanap_hub_social_sdk($provider,$config);$sdk->getAccessToken($state,$code,$state);
     if($provider==='qq'){
         $sdk->getOpenID();
@@ -62,7 +68,10 @@ function duanap_hub_social_flow($provider,$callback,$authorization=null){
     $info=$sdk->getUserInfo();
     if(!is_array($info)||!$sdk->openid)throw new Duanap_Hub_Social_Exception('hub_profile_unavailable','第三方身份不可用。',503);
     $union=$provider==='qq'?duanap_hub_qq_union_capture($sdk,$config):null;
-    $result=duanap_hub_social_resolve(['provider'=>$provider,'app_id'=>$config['appid'],'subject'=>(string)$sdk->openid,'display_name'=>(string)($info['nickname']??$info['name']??$info['login']??''),'avatar_url'=>(string)($info['figureurl_qq_2']??$info['figureurl_qq_1']??$info['avatar_url']??'')],$actor);
+    if($continuation&&($provider!=='qq'||!$union))throw new Duanap_Hub_Social_Exception('blog_qq_proof_missing','博客 QQ 未返回可信跨应用证明。',409);
+    // A Hub login may discover an existing QQ owner, never create a blog user
+    // or bind a new QQ identity to the currently logged-in blog browser account.
+    $result=duanap_hub_social_resolve(['provider'=>$provider,'app_id'=>$config['appid'],'subject'=>(string)$sdk->openid,'display_name'=>(string)($info['nickname']??$info['name']??$info['login']??''),'avatar_url'=>(string)($info['figureurl_qq_2']??$info['figureurl_qq_1']??$info['avatar_url']??'')],$continuation?0:$actor,!$continuation);
     if(is_wp_error($result))throw new Duanap_Hub_Social_Exception($result->get_error_code(),$result->get_error_message(),$result->get_error_data()['status']??503);
     if($provider==='qq'&&duanap_hub_qq_union_realm()!==''){
         // Remove obsolete proof when permissions/identity change. Only a verified
@@ -72,6 +81,14 @@ function duanap_hub_social_flow($provider,$callback,$authorization=null){
     }
     $user=get_user_by('id',$result['user_id']);wp_set_current_user($user->ID);wp_set_auth_cookie($user->ID,false);do_action('wp_login',$user->user_login,$user);
     wp_safe_redirect($continuation??home_url('/hub-account-bindings'));exit;
+    }catch(Throwable $error){
+        if($continuation){
+            $code=$error instanceof Duanap_Hub_Social_Exception?$error->result->get_error_code():'';
+            $reason=in_array($code,['blog_qq_not_found','blog_qq_proof_missing','blog_qq_cancelled'],true)?$code:(in_array($code,['hub_binding_conflict','hub_legacy_review_required'],true)?'blog_qq_conflict':'blog_qq_unavailable');
+            duanap_hub_authorization_failure($row['authorization_query'],$reason);
+        }
+        throw $error;
+    }
 }
 function duanap_hub_social_manager(){
     $expected=$_GET['expect_uid']??'';
