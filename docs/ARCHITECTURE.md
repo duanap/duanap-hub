@@ -16,7 +16,7 @@ Core 拥有：公开首页与独立内容路由、duanap Studio、管理员独�
 - `projects`：作品、游戏项目、手动运营状态、当前版本和内容记录；本地 SQLite。
 - `games`：从 `projects` 中筛选游戏类别；P3 才接战绩与角色服务。
 - `tools`：工具目录及逐个启用的独立工具；密码生成在浏览器本地执行。
-- `content`：P3 才接 WordPress 文章摘要；未配置不触发请求。
+- `content`：P3 首批已接匿名 WordPress 公开摘要、分类和封面。仅从服务器指定的公开 HTTPS 源读取，不依赖账号凭据；本地独立摘要表，首页/RSS 先读缓存，刷新有限时与退避，未配置或禁用不发请求。见 `P3-CONTENT-2026-10-16.md`。
 - `accounts`：主站本地身份、密码和普通会话独立保存；可选关联用 WordPress OAuth2 + S256 PKCE + Bridge 本人 API 读取积分、签到并提交唯一签到事件。博客仍是积分权威；普通账户不映射 Studio 管理员。新实现默认关闭，真实 QQ/UnionID 和博客账号关联须验收后开放。
 - `edgeone`：P3 服务端读 API，设置超时和带时间戳的缓存。
 - `bot`：P3 独立 QQ Bot 进程，只有绑定身份和业务 API，不直接写 WordPress 或游戏数据库。
