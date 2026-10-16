@@ -109,3 +109,13 @@ test('a delayed member logout response cannot erase a newer account login',async
   await ready
   try{const second=await local(page.request);release();expect(await pending).toBe(200);const now=await (await page.request.get('/api/member/me')).json();expect(now.member.id).toBe(second.me.member.id)}finally{release()}
 })
+
+test('QQ management UI preserves the selected operation after a wrong password and completes unlink',async({page})=>{
+  const u=await local(page.request);await qq(page.request,{user:'qq-management-ui',connect:true})
+  await page.goto('/account');await expect(page.getByRole('button',{name:'刷新账号',exact:true})).toBeEnabled()
+  await page.getByRole('combobox',{name:'QQ 管理操作',exact:true}).selectOption('unlink');await page.getByLabel('验证主站密码',{exact:true}).fill('wrong')
+  page.on('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'执行 QQ 账号操作',exact:true}).click()
+  await expect(page.getByText('主站密码验证失败',{exact:true})).toBeVisible();await expect(page.getByRole('combobox',{name:'QQ 管理操作',exact:true})).toHaveValue('unlink')
+  await page.getByLabel('验证主站密码',{exact:true}).fill(password);await page.getByRole('button',{name:'执行 QQ 账号操作',exact:true}).click()
+  await expect(page.getByText('当前未关联 QQ',{exact:true})).toBeVisible();const current=await (await page.request.get('/api/member/me')).json();expect(current.member.id).toBe(u.me.member.id);expect(current.member.qqLinked).toBe(false)
+})
