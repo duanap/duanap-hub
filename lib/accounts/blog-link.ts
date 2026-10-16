@@ -1,9 +1,15 @@
 import { randomBytes } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { accountConfig } from './config'
-import { beginAuthorization } from './store'
+import { beginAuthorization,findAccountSession,deleteAccountSession } from './store'
+import { revokeWordPressToken } from './wordpress'
 import { AUTH_COOKIE,authTransactionCookie,cookieOptions,privateHeaders } from './session'
 import { memberConfig,memberBindingVersion,type MemberSession } from './member-store'
+
+export async function revokeLinkedBlogSession(token:string){
+  if(!token)return false
+  try{const config=accountConfig(),current=findAccountSession(config,token);if(!current)return false;deleteAccountSession(config,current);return await revokeWordPressToken(config,current.accessToken)}catch{return false}
+}
 
 // Only called after a local POST+CSRF check or a browser-bound QQ callback.
 export function beginBlogLink(current:MemberSession,automatic=false){
