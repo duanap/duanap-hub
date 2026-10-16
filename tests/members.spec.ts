@@ -1,16 +1,17 @@
-import { test,expect,type APIRequestContext } from '@playwright/test'
+import { test as baseTest,expect,type APIRequestContext } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import Database from 'better-sqlite3'
 import { enableAccounts,accountOrigin,authorizeAccount } from './helpers/accounts'
+const test=baseTest.extend({request:async({playwright},use)=>{const client=await playwright.request.newContext({baseURL:accountOrigin,extraHTTPHeaders:{'X-Real-IP':'isolated-member-'+randomBytes(8).toString('hex')}});try{await use(client)}finally{await client.dispose()}}})
 const password='Synthetic-member-password-2026!',origin={Origin:accountOrigin}
 const username=()=> 'member_'+randomBytes(5).toString('hex')
 async function local(c:APIRequestContext){const name=username(),r=await c.post('/api/member/register',{headers:origin,data:{username:name,password}});expect(r.status(),await r.text()).toBe(200);return {name,...await r.json(),me:await (await c.get('/api/member/me')).json()}}
 async function mutation(c:APIRequestContext,action:string,data:unknown={}){const me=await (await c.get('/api/member/me')).json();return c.post('/api/member/'+action,{headers:{...origin,'X-Hub-CSRF':me.csrfToken},data})}
 async function link(c:APIRequestContext,user='alice',automatic=false){const r=await mutation(c,'blog/link',{automatic});expect(r.status()).toBe(200);const {url}=await r.json();return authorizeAccount(c,url,user)}
-async function qq(c:APIRequestContext,options:{user?:string;mode?:string;avatar?:string;automatic?:boolean;connect?:boolean}={}){await c.post('http://127.0.0.1:1032/__fixture/control',{data:options});const r=options.connect?await mutation(c,'qq/connect'):await c.get('/api/member/qq'+(options.automatic?'?linkBlog=1':''),{maxRedirects:0}),url=options.connect?(await r.json()).url:r.headers().location;const grant=await c.get(url,{maxRedirects:0}),callback=grant.headers().location;return {callback,result:await c.get(callback,{maxRedirects:0})}}
+async function qq(c:APIRequestContext,options:{user?:string;mode?:string;avatar?:string;automatic?:boolean;connect?:boolean}={}){await c.post('http://127.0.0.1:1032/__fixture/control',{data:options});const r=options.connect?await mutation(c,'qq/connect',{password}):await c.get('/api/member/qq'+(options.automatic?'?linkBlog=1':''),{maxRedirects:0}),url=options.connect?(await r.json()).url:r.headers().location;const grant=await c.get(url,{maxRedirects:0}),callback=grant.headers().location;return {callback,result:await c.get(callback,{maxRedirects:0})}}
 test.beforeEach(async({request})=>{await enableAccounts(request)})
 test('independent password registration/login/recovery work during blog failure and recovery is one-use',async({playwright,request})=>{
  const c=await playwright.request.newContext({baseURL:accountOrigin,extraHTTPHeaders:{'X-Real-IP':'member-offline'}})
@@ -31,3 +32,80 @@ test('private member snapshot restores identities, clears sessions and requires 
  const db=new Database(path.join(target,'members.sqlite'),{readonly:true});try{expect(db.prepare('SELECT id FROM members WHERE id=?').get(u.me.member.id)).toBeTruthy();expect((db.prepare('SELECT COUNT(*) n FROM member_sessions').get() as {n:number}).n).toBe(0);expect(db.prepare('SELECT authorized,payload FROM member_blogs WHERE member_id=?').get(u.me.member.id)).toEqual({authorized:0,payload:''})}finally{db.close();await mutation(request,'blog/unlink',{confirm:true})}
 })
 test('mobile dark UI supports registration, recovery delivery and native autofill form values',async({page})=>{await page.setViewportSize({width:390,height:844});await page.emulateMedia({colorScheme:'dark'});await page.goto('/account');await page.getByRole('button',{name:'切换深色模式',exact:true}).click();await expect(page.getByRole('button',{name:'切换浅色模式',exact:true})).toBeVisible();await page.getByRole('button',{name:'注册',exact:true}).click();const name=username();await page.getByLabel('用户名',{exact:true}).fill(name);await page.getByLabel('密码',{exact:true}).fill(password);await page.getByRole('button',{name:'创建主站账号'}).click();await expect(page.getByRole('heading',{name:'请保存恢复密钥'})).toBeVisible();await expect(page.getByText('尚未关联博客，签到与积分尚未解锁')).toBeVisible();await page.getByRole('button',{name:'退出主站',exact:true}).click();await page.getByRole('button',{name:'登录',exact:true}).click();await page.locator('input[name=username]').evaluate((el:HTMLInputElement,value)=>{el.value=value},name);await page.locator('input[name=password]').evaluate((el:HTMLInputElement,value)=>{el.value=value},password);await page.getByRole('button',{name:'登录主站',exact:true}).click();await expect(page.getByText('用户名：'+name)).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)})
+
+async function stagedQQ(c:APIRequestContext,user:string,action='qq/replace',data:unknown={password}){
+  await c.post('http://127.0.0.1:1032/__fixture/control',{data:{user}})
+  const start=await mutation(c,action,data);expect(start.status(),await start.text()).toBe(200)
+  const url=(await start.json()).url,grant=await c.get(url,{maxRedirects:0});return grant.headers().location
+}
+test('first QQ binding requires the password of the existing local account',async({request})=>{
+  const u=await local(request)
+  expect((await mutation(request,'qq/connect')).status()).toBe(403)
+  expect((await mutation(request,'qq/connect',{password:'wrong'})).status()).toBe(403)
+  expect((await (await request.get('/api/member/me')).json()).member.qqLinked).toBe(false)
+  await qq(request,{user:'password-protected-connect',connect:true})
+  expect((await (await request.get('/api/member/me')).json()).member.id).toBe(u.me.member.id)
+})
+test('social-only QQ cannot be unlinked until a password and recovery key exist; unlink revokes peers and pending bind',async({request,playwright})=>{
+  await qq(request,{user:'unlink-social-only'})
+  const before=await (await request.get('/api/member/me')).json()
+  expect((await mutation(request,'qq/unlink',{confirm:true,password})).status()).toBe(403)
+  const fallback=await mutation(request,'password',{password});expect(fallback.status()).toBe(200);expect((await fallback.json()).recovery).toMatch(/^[\w-]{43}$/)
+  const peer=await playwright.request.newContext({baseURL:accountOrigin,extraHTTPHeaders:{'X-Real-IP':'qq-unlink-peer'}})
+  try{
+    expect((await peer.post('/api/member/login',{headers:origin,data:{username:before.member.username,password}})).status()).toBe(200)
+    const pending=await stagedQQ(request,'unlink-social-only','qq/connect',{})
+    expect((await mutation(request,'qq/unlink',{confirm:true,password:'wrong'})).status()).toBe(403)
+    expect((await mutation(request,'qq/unlink',{confirm:true,password})).status()).toBe(200)
+    const after=await (await request.get('/api/member/me')).json();expect(after.member.id).toBe(before.member.id);expect(after.member.qqLinked).toBe(false);expect(after.member.avatarUrl).toBe('')
+    expect((await peer.get('/api/member/me')).status()).toBe(401)
+    expect((await request.get(pending,{maxRedirects:0})).headers().location).toContain('qq=failed')
+    expect((await (await request.get('/api/member/me')).json()).member.qqLinked).toBe(false)
+  }finally{await peer.dispose()}
+})
+test('QQ replacement is atomic, retains main UID/blog mapping, revokes peers and fences a second pending replacement',async({request,playwright})=>{
+  const u=await local(request);await qq(request,{user:'replace-old',connect:true});await request.get(await link(request,'bob'),{maxRedirects:0})
+  const peer=await playwright.request.newContext({baseURL:accountOrigin,extraHTTPHeaders:{'X-Real-IP':'qq-replace-peer'}})
+  try{
+    await peer.post('/api/member/login',{headers:origin,data:{username:u.name,password}})
+    const first=await stagedQQ(request,'replace-new'),stale=await stagedQQ(request,'replace-stale')
+    expect((await request.get(first,{maxRedirects:0})).headers().location).toContain('qq=updated')
+    const after=await (await request.get('/api/member/me')).json();expect(after.member.id).toBe(u.me.member.id);expect(after.member.qqLinked).toBe(true);expect(after.blog.linked).toBe(true);expect(after.blog.authorized).toBe(false)
+    expect((await peer.get('/api/member/me')).status()).toBe(401);expect((await request.get('/api/account/points')).status()).toBe(403)
+    expect((await request.get(stale,{maxRedirects:0})).headers().location).toContain('qq=failed')
+    await mutation(request,'blog/unlink',{confirm:true})
+  }finally{await peer.dispose()}
+})
+test('a QQ owned by another member cannot replace the existing binding',async({request,playwright})=>{
+  const u=await local(request);await qq(request,{user:'conflict-old',connect:true})
+  const owner=await playwright.request.newContext({baseURL:accountOrigin,extraHTTPHeaders:{'X-Real-IP':'qq-conflict-owner'}})
+  try{
+    const other=await local(owner);await qq(owner,{user:'conflict-owned',connect:true})
+    const callback=await stagedQQ(request,'conflict-owned');expect((await request.get(callback,{maxRedirects:0})).headers().location).toContain('qq=failed')
+    const after=await (await request.get('/api/member/me')).json();expect(after.member.id).toBe(u.me.member.id);expect(after.member.qqLinked).toBe(true)
+    expect((await (await owner.get('/api/member/me')).json()).member.id).toBe(other.me.member.id)
+    const db=new Database(path.join(process.env.HUB_TEST_ACCOUNTS_DATA_DIR!,'members.sqlite'),{readonly:true})
+    try{expect(db.prepare('SELECT count(*) n FROM member_qq WHERE member_id=?').get(u.me.member.id)).toEqual({n:1})}finally{db.close()}
+  }finally{await owner.dispose()}
+})
+test('password change invalidates a previously password-approved QQ replacement',async({request})=>{
+  await local(request);await qq(request,{user:'reset-replacement-old',connect:true});const callback=await stagedQQ(request,'reset-replacement-new')
+  expect((await mutation(request,'password',{oldPassword:password,password:password+'changed'})).status()).toBe(200)
+  expect((await request.get(callback,{maxRedirects:0})).headers().location).toContain('qq=failed')
+  expect((await (await request.get('/api/member/me')).json()).member.qqLinked).toBe(true)
+})
+test('invalid optional UnionID configuration does not disable ordinary QQ login',async({request})=>{
+  test.skip(!process.env.HUB_TEST_QQ_REALM,'isolated malformed-scope run only')
+  const state=await (await request.get('/api/member/status')).json();expect(state.qqConfigured).toBe(true);expect(state.qqAutoLinkConfigured).toBe(false)
+  const {result}=await qq(request,{user:'invalid-realm-normal-login'});expect(result.headers().location).toBe(accountOrigin+'/account');expect((await request.get('/api/member/me')).status()).toBe(200)
+})
+
+test('a delayed member logout response cannot erase a newer account login',async({page})=>{
+  const first=await local(page.request);await page.goto('/account')
+  let release!:()=>void,received!:()=>void
+  const held=new Promise<void>(resolve=>{release=resolve}),ready=new Promise<void>(resolve=>{received=resolve})
+  await page.route('**/api/member/logout',async route=>{const response=await route.fetch();received();await held;await route.fulfill({response})})
+  const pending=page.evaluate(async token=>{const r=await fetch('/api/member/logout',{method:'POST',headers:{'Content-Type':'application/json','X-Hub-CSRF':token},body:'{}'});return r.status},first.me.csrfToken)
+  await ready
+  try{const second=await local(page.request);release();expect(await pending).toBe(200);const now=await (await page.request.get('/api/member/me')).json();expect(now.member.id).toBe(second.me.member.id)}finally{release()}
+})

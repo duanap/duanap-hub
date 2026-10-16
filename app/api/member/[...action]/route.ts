@@ -5,9 +5,9 @@ import { loginAttemptKey } from '@/lib/admin-auth'
 import { AccountError,accountConfig } from '@/lib/accounts/config'
 import { accountFailure,cookieOptions,privateHeaders } from '@/lib/accounts/session'
 import { MEMBER_COOKIE,currentMember,guardMemberMutation,guardMemberOrigin } from '@/lib/accounts/member-session'
-import { authenticateMember,memberBlog,memberById,memberConfig,memberCsrf,memberSessions,memberThrottle,recoverMember,registerMember,removeMemberSession,setMemberPassword,unlinkMemberBlog,updateMemberProfile,validPassword,validUsername } from '@/lib/accounts/member-store'
-import { beginQQAuthorization,mainQQConfigured } from '@/lib/accounts/member-qq'
-import { beginBlogLink } from '@/lib/accounts/blog-link'
+import { authenticateMember,memberBlog,memberById,memberConfig,memberCsrf,memberQQ,memberQQVersion,memberSessions,memberThrottle,recoverMember,registerMember,removeMemberSession,setMemberPassword,unlinkMemberBlog,unlinkMemberQQ,updateMemberProfile,validPassword,validUsername,verifyMemberQQPassword } from '@/lib/accounts/member-store'
+import { beginQQAuthorization,mainQQConfigured,mainQQAutoLinkConfigured } from '@/lib/accounts/member-qq'
+import { beginBlogLink,revokeLinkedBlogSession } from '@/lib/accounts/blog-link'
 import { deleteAccountSession,findAccountSession } from '@/lib/accounts/store'
 import { revokeWordPressToken } from '@/lib/accounts/wordpress'
 export const runtime='nodejs'
@@ -29,13 +29,13 @@ export async function GET(request:Request,context:Context){
       memberThrottle(config,'qq:'+loginAttemptKey(request),30,900)
       return await beginQQAuthorization(query.get('linkBlog')==='1')
     }
-    if(action==='status')return json({qqConfigured:mainQQConfigured()})
+    if(action==='status')return json({qqConfigured:mainQQConfigured(),qqAutoLinkConfigured:mainQQAutoLinkConfigured()})
     const current=await currentMember(config)
     if(action==='me'){
       const member=memberById(config,current.memberId)!,blog=memberBlog(config,member.id)
       let authorized=false
       if(blog){try{authorized=!!findAccountSession(accountConfig(),blog.sessionToken)}catch{}}
-      return json({member,csrfToken:memberCsrf(config,current),expiresAt:current.expiresAt,blog:blog?{linked:true,blogUid:blog.blogUid,linkedAt:blog.linkedAt,match:blog.match,authorized:blog.authorized&&authorized}:{linked:false,authorized:false},qqConfigured:mainQQConfigured()})
+      return json({member,csrfToken:memberCsrf(config,current),expiresAt:current.expiresAt,blog:blog?{linked:true,blogUid:blog.blogUid,linkedAt:blog.linkedAt,match:blog.match,authorized:blog.authorized&&authorized}:{linked:false,authorized:false},qqConfigured:mainQQConfigured(),qqAutoLinkConfigured:mainQQAutoLinkConfigured()})
     }
     if(action==='sessions')return json({sessions:memberSessions(config,current)})
     throw new AccountError(404,'not_found','页面不存在')
@@ -60,10 +60,10 @@ export async function POST(request:Request,context:Context){
       response.cookies.set(MEMBER_COOKIE,result.sessionToken,cookieOptions(604800));return response
     }
     const current=await currentMember(config);guardMemberMutation(request,config,current)
-    if(action==='logout'){removeMemberSession(config,current);const response=json({ok:true});response.cookies.set(MEMBER_COOKIE,'',cookieOptions(0));return response}
+    if(action==='logout'){removeMemberSession(config,current);return json({ok:true})}
     if(action==='sessions/revoke'){
       const p=await body(request);onlyKeys(p,['id']);if(typeof p.id!=='string'||! /^[0-9a-f-]{36}$/.test(p.id))throw new AccountError(400,'invalid_request','会话无效')
-      removeMemberSession(config,current,p.id);const response=json({ok:true});if(p.id===current.id)response.cookies.set(MEMBER_COOKIE,'',cookieOptions(0));return response
+      removeMemberSession(config,current,p.id);return json({ok:true})
     }
     if(action==='profile'){
       const p=await body(request)
@@ -74,7 +74,22 @@ export async function POST(request:Request,context:Context){
     if(action==='password'){
       const p=await body(request);onlyKeys(p,['oldPassword','password']);const recovery=await setMemberPassword(config,current,p.oldPassword,validPassword(p.password));return json({ok:true,recovery})
     }
-    if(action==='qq/connect'){const p=await body(request);onlyKeys(p,['linkBlog']);return jsonRedirect(await beginQQAuthorization(p.linkBlog===true,current))}
+    if(action==='qq/connect'){
+      const p=await body(request);onlyKeys(p,['linkBlog','password']);const qqVersion=memberQQVersion(config,current.memberId);let credentialProof:string|undefined
+      if(!memberQQ(config,current.memberId)){memberThrottle(config,'qq-change:'+current.memberId,10,900);credentialProof=await verifyMemberQQPassword(config,current,p.password)}
+      return jsonRedirect(await beginQQAuthorization(p.linkBlog===true,current,{replace:false,credentialProof,qqVersion}))
+    }
+    if(action==='qq/replace'){
+      const p=await body(request);onlyKeys(p,['password']);memberThrottle(config,'qq-change:'+current.memberId,10,900)
+      if(!memberQQ(config,current.memberId))throw new AccountError(409,'qq_not_linked','当前未关联 QQ')
+      const qqVersion=memberQQVersion(config,current.memberId),credentialProof=await verifyMemberQQPassword(config,current,p.password)
+      return jsonRedirect(await beginQQAuthorization(false,current,{replace:true,credentialProof,qqVersion}))
+    }
+    if(action==='qq/unlink'){
+      const p=await body(request);onlyKeys(p,['password','confirm']);if(p.confirm!==true)throw new AccountError(400,'confirmation_required','请确认解除 QQ 关联')
+      memberThrottle(config,'qq-change:'+current.memberId,10,900);const blog=await unlinkMemberQQ(config,current,p.password),upstreamRevoked=blog?await revokeLinkedBlogSession(blog.sessionToken):false
+      return json({ok:true,upstreamRevoked,blogReauthorizationRequired:!!blog,otherSessionsRevoked:true})
+    }
     if(action==='blog/link'){const p=await body(request);onlyKeys(p,['automatic']);return jsonRedirect(beginBlogLink(current,p.automatic===true))}
     if(action==='blog/unlink'){
       const p=await body(request);onlyKeys(p,['confirm']);if(p.confirm!==true)throw new AccountError(400,'confirmation_required','请确认解除博客关联')

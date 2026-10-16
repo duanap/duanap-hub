@@ -43,6 +43,7 @@ function database(config:MemberConfig){
       if(!(db.pragma('table_info(member_sessions)') as {name:string}[]).some(column=>column.name==='verified_at'))db.exec('ALTER TABLE member_sessions ADD COLUMN verified_at INTEGER NOT NULL DEFAULT 0')
       db.exec('UPDATE member_sessions SET verified_at=created_at WHERE verified_at=0')
       if(!(db.pragma('table_info(members)') as {name:string}[]).some(column=>column.name==='binding_version'))db.exec('ALTER TABLE members ADD COLUMN binding_version INTEGER NOT NULL DEFAULT 0')
+      if(!(db.pragma('table_info(members)') as {name:string}[]).some(column=>column.name==='qq_version'))db.exec('ALTER TABLE members ADD COLUMN qq_version INTEGER NOT NULL DEFAULT 0')
       chmodSync(file,0o600);state.hubMembersDb=db
     }catch(error){db.close();throw error}
   }
@@ -130,7 +131,33 @@ export async function setMemberPassword(config:MemberConfig,current:MemberSessio
 }
 export type QQIdentity={appId:string;subject:string;realm:string;unionId:string;displayName:string;avatarUrl:string}
 export function memberQQ(config:MemberConfig,id:string){return database(config).prepare('SELECT app_id appId,realm,union_id unionId FROM member_qq WHERE member_id=?').get(id) as {appId:string;realm:string;unionId:string}|undefined}
-export function resolveMemberQQ(config:MemberConfig,identity:QQIdentity,actor?:MemberSession){
+export function memberQQVersion(config:MemberConfig,id:string){const row=database(config).prepare('SELECT qq_version n FROM members WHERE id=?').get(id) as {n:number}|undefined;if(!row)throw new AccountError(401,'member_unauthenticated','账号不可用');return row.n}
+function assertQQPassword(config:MemberConfig,current:MemberSession,proof:string){
+  const db=database(config),row=db.prepare('SELECT password,recovery_hash FROM members WHERE id=?').get(current.memberId) as {password:string|null;recovery_hash:string|null}|undefined
+  if(!row?.password||!row.recovery_hash)throw new AccountError(403,'password_fallback_required','请先设置主站密码并保存恢复密钥，再管理 QQ 关联')
+  if(memberHash(row.password)!==proof)throw new AccountError(403,'password_changed','密码已变化，请重新验证')
+  if(!db.prepare('SELECT 1 FROM member_sessions WHERE hash=? AND member_id=? AND expires_at>? AND epoch=?').get(current.hash,current.memberId,now(),config.epoch))throw new AccountError(401,'member_session_changed','主站会话已失效')
+}
+export async function verifyMemberQQPassword(config:MemberConfig,current:MemberSession,password:unknown){
+  const db=database(config),row=db.prepare('SELECT password,recovery_hash FROM members WHERE id=?').get(current.memberId) as {password:string|null;recovery_hash:string|null}|undefined
+  if(!row?.password||!row.recovery_hash)throw new AccountError(403,'password_fallback_required','请先设置主站密码并保存恢复密钥，再管理 QQ 关联')
+  if(typeof password!=='string'||password.length>200||!await passwordMatches(password,row.password))throw new AccountError(403,'invalid_password','主站密码验证失败')
+  const proof=memberHash(row.password);assertQQPassword(config,current,proof);return proof
+}
+function invalidateQQAccess(config:MemberConfig,current:MemberSession){
+  const db=database(config);let blog:ReturnType<typeof memberBlog>=null
+  try{blog=memberBlog(config,current.memberId)}catch{/* Still revoke unusable local credentials. */}
+  db.prepare("UPDATE member_blogs SET authorized=0,payload='' WHERE member_id=?").run(current.memberId)
+  db.prepare('UPDATE members SET qq_version=qq_version+1,binding_version=binding_version+1 WHERE id=?').run(current.memberId)
+  db.prepare('DELETE FROM member_sessions WHERE member_id=? AND hash<>?').run(current.memberId,current.hash)
+  return blog
+}
+export async function unlinkMemberQQ(config:MemberConfig,current:MemberSession,password:unknown){
+  const revision=memberQQVersion(config,current.memberId),proof=await verifyMemberQQPassword(config,current,password),db=database(config)
+  return db.transaction(()=>{assertQQPassword(config,current,proof);if(memberQQVersion(config,current.memberId)!==revision)throw new AccountError(409,'qq_binding_changed','QQ 关联已变化，请刷新重试');if(!db.prepare('DELETE FROM member_qq WHERE member_id=?').run(current.memberId).changes)throw new AccountError(409,'qq_not_linked','当前未关联 QQ');db.prepare("UPDATE members SET qq_avatar='' WHERE id=?").run(current.memberId);return invalidateQQAccess(config,current)})()
+}
+export type QQChange={qqVersion:number;credentialProof?:string;replace:boolean}
+export function resolveMemberQQ(config:MemberConfig,identity:QQIdentity,actor?:MemberSession,change?:QQChange){
   const db=database(config)
   return db.transaction(()=>{
     const known=db.prepare('SELECT member_id FROM member_qq WHERE app_id=? AND subject=?').get(identity.appId,identity.subject) as {member_id:string}|undefined
@@ -138,10 +165,18 @@ export function resolveMemberQQ(config:MemberConfig,identity:QQIdentity,actor?:M
     if(actor&&(!db.prepare('SELECT 1 FROM member_sessions WHERE hash=? AND expires_at>?').get(actor.hash,now())||(known&&known.member_id!==actor.memberId)||(union&&union.member_id!==actor.memberId)))throw new AccountError(409,'qq_binding_conflict','QQ 已关联其他主站账号，或主站会话已变化')
     const id=actor?.memberId||known?.member_id||union?.member_id||randomUUID()
     const prior=db.prepare('SELECT app_id,subject FROM member_qq WHERE member_id=?').get(id) as {app_id:string;subject:string}|undefined
-    if(prior&&(prior.app_id!==identity.appId||prior.subject!==identity.subject))throw new AccountError(409,'qq_binding_conflict','主站账号已有其他 QQ 身份，需要核实后再调整')
+    if(actor){
+      if(!change||memberQQVersion(config,id)!==change.qqVersion)throw new AccountError(409,'qq_binding_changed','QQ 关联已变化，请重新发起')
+      if(change.replace||!prior||change.credentialProof)assertQQPassword(config,actor,change.credentialProof||'')
+      if(change.replace&&!prior)throw new AccountError(409,'qq_not_linked','当前未关联 QQ')
+    }
+    if(prior&&(prior.app_id!==identity.appId||prior.subject!==identity.subject)&&!change?.replace)throw new AccountError(409,'qq_binding_conflict','当前已有其他 QQ，请使用更换 QQ 功能')
+    if(actor&&change?.replace)db.prepare('DELETE FROM member_qq WHERE member_id=?').run(id)
     if(!db.prepare('SELECT 1 FROM members WHERE id=?').get(id))db.prepare('INSERT INTO members(id,username,password,recovery_hash,display_name,avatar_source,qq_avatar,created_at) VALUES(?,?,NULL,NULL,?,?,?,?)').run(id,'qq_'+randomBytes(10).toString('hex'),identity.displayName||'QQ 用户','qq',identity.avatarUrl,now())
     db.prepare("INSERT INTO member_qq VALUES(?,?,?,?,?) ON CONFLICT(app_id,subject) DO UPDATE SET realm=excluded.realm,union_id=CASE WHEN excluded.realm<>'' AND excluded.union_id='' AND member_qq.realm=excluded.realm THEN member_qq.union_id ELSE excluded.union_id END").run(identity.appId,identity.subject,id,identity.realm,identity.unionId)
     db.prepare('UPDATE members SET qq_avatar=? WHERE id=?').run(identity.avatarUrl,id)
+    if(actor&&change?.replace)invalidateQQAccess(config,actor)
+    else if(actor&&!prior)db.prepare('UPDATE members SET qq_version=qq_version+1 WHERE id=?').run(id)
     return memberById(config,id)!
   })()
 }
