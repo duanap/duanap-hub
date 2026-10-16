@@ -1,10 +1,28 @@
 <?php
 // CLI-only, marked synthetic fixture. Never install as a web hook.
 if(PHP_SAPI!=='cli'||count($argv)<3)exit(1);
-$root=realpath($argv[1]);if(!$root||trim(file_get_contents($root.'/duanap-hub-fixture.marker'))!=='isolated')exit(1);
+require_once __DIR__.'/fixture-bootstrap.php';$root=duanap_test_bootstrap(realpath($argv[1])?:'');
 $_SERVER['REMOTE_ADDR']='127.0.0.1';require $root.'/wp-load.php';
+duanap_test_sinks();
 if(!defined('DUANAP_HUB_TEST_FIXTURE')||!DUANAP_HUB_TEST_FIXTURE||wp_get_environment_type()!=='development'||!str_starts_with(DB_NAME,'hub_p2_audit_'))exit(1);
 global $wpdb;$wpdb->suppress_errors(true);$action=$argv[2];$id=(int)($argv[3]??0);
+if(in_array($action,['login-policy-on','login-policy-off'],true)){
+    $options=get_option('zibll_options');$key='duanap_hub_fixture_login_policy';
+    if($action==='login-policy-on'){
+        if(get_option($key)!==false)exit(1);
+        $saved=[];foreach(['points_free_opt','user_integral_opt','user_level_s','checkin_s'] as $field)$saved[$field]=['exists'=>array_key_exists($field,$options),'value'=>$options[$field]??null];update_option($key,$saved);
+        $options['points_free_opt']=array_replace($options['points_free_opt']??[],['sign_in'=>5,'sign_up'=>20]);
+        $options['user_integral_opt']=array_replace($options['user_integral_opt']??[],['sign_in'=>3,'sign_up'=>0]);$options['user_level_s']=true;
+    }else{
+        $saved=get_option($key);if(!is_array($saved))exit(1);
+        foreach($saved as $field=>$value){if($value['exists'])$options[$field]=$value['value'];else unset($options[$field]);}delete_option($key);
+    }
+    update_option('zibll_options',$options);echo json_encode(['policyUpdated'=>true]);exit;
+}
+if(in_array($action,['login-checkin-off','login-checkin-on'],true)){
+    if(!is_array(get_option('duanap_hub_fixture_login_policy')))exit(1);
+    $options=get_option('zibll_options');$options['checkin_s']=$action==='login-checkin-on';update_option('zibll_options',$options);echo json_encode(['checkinSettingUpdated'=>true]);exit;
+}
 if($action==='create'){
     $name='bridge-daily-http-'.bin2hex(random_bytes(10));$password=wp_generate_password(48,false);
     $id=wp_create_user($name,$password);if(is_wp_error($id))exit(1);
@@ -13,6 +31,15 @@ if($action==='create'){
     echo json_encode(['id'=>$id,'username'=>$name,'password'=>$password]);exit;
 }
 if(!$id||get_user_meta($id,'duanap_hub_daily_fixture',true)!== '1')exit(1);
+if($action==='login-snapshot'){
+    $records=zib_get_user_meta($id,'points_record',true);
+    echo json_encode(['balance'=>(int)get_user_meta($id,'points',true),'integral'=>(int)get_user_meta($id,'level_integral',true),'pointsDate'=>zib_get_user_meta($id,'_signin_points_time',true),'integralDate'=>zib_get_user_meta($id,'_signin_integral_time',true),'records'=>is_array($records)?count($records):0]);exit;
+}
+if($action==='login-fault'){
+    if($wpdb->query("CREATE TRIGGER hub_fixture_login_failure BEFORE UPDATE ON {$wpdb->usermeta} FOR EACH ROW BEGIN IF NEW.user_id=$id AND NEW.meta_key='points' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic login reward failure'; END IF; END")===false)exit(1);
+    echo json_encode(['faultInstalled'=>true]);exit;
+}
+if($action==='login-clear-fault'){$wpdb->query('DROP TRIGGER IF EXISTS hub_fixture_login_failure');echo json_encode(['faultCleared'=>true]);exit;}
 if($action==='snapshot'){
     $uid=duanap_hub_uid($id);
     $records=zib_get_user_meta($id,'points_record',true);
