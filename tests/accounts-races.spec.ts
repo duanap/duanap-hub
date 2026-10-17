@@ -78,7 +78,7 @@ test('first-time simultaneous tab authorizations both have valid browser binding
 
 test('homepage ordering does not change account authentication generation',async({playwright,request})=>{
   const user=await playwright.request.newContext({baseURL:accountOrigin});await loginAccount(user)
-  await request.patch('/api/studio/modules',{headers:{Origin:accountOrigin},data:{order:['tools','games','projects','about','content','accounts','edgeone']}})
+  await request.patch('/api/studio/modules',{headers:{Origin:accountOrigin},data:{order:['tools','games','projects','about','content','accounts','edgeone','github']}})
   expect((await user.get('/api/account/me')).status()).toBe(200)
   await user.dispose()
 })

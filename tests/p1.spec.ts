@@ -3,7 +3,7 @@ test('home arrangement, module isolation and SEO remain consistent without integ
   const headers = { Origin: 'http://127.0.0.1:1027' }
   expect((await page.request.post('/api/studio/login', { headers, data: { username: 'duanap', password: process.env.HUB_TEST_ADMIN_PASSWORD } })).ok()).toBeTruthy()
   expect((await page.request.put('/api/studio/site', { headers, data: { displayName: '中文测试', homeProjectsLimit: 3, homeShowUpdates: false, homeLayout: 'compact', socialLinks: [{ label: '我的社交', url: 'https://example.com/profile' }] } })).ok()).toBeTruthy()
-  const order = ['tools', 'games', 'projects', 'about', 'content', 'accounts', 'edgeone']
+  const order = ['tools', 'games', 'projects', 'about', 'content', 'accounts', 'edgeone', 'github']
   expect((await page.request.patch('/api/studio/modules', { headers, data: { order } })).ok()).toBeTruthy()
   await page.goto('/')
   await expect(page.getByRole('link', { name: '我的社交' })).toBeVisible()
