@@ -26,3 +26,13 @@ GitHub 首页 SSR 只读本地缓存，客户端按需同步；缓存 30 分钟�
 检查包括：新 P3 浏览器/API 11 项、博客 9 项、离线 Core 43 项（2 条 QQ 条件跳过）、旧账号协议 34 项（1 条关闭写入条件跳过）、备份 8 项、管理员环境 1 项，以及构建/类型/结构检查。覆盖真实 DOCX 下载并检查 OOXML、DOCX 读入、压缩体积超限、恶意 HTML 零外部请求、取消、IP 同意/保留地址/错误清理、逐工具 SEO/启停、GitHub 失败/私有数据/限流/尺寸/重定向/并发代次、慢请求不影响 Core、Studio 未保存及备份。
 
 服务器依赖通过精确 lockfile 的 npm ci、禁用安装脚本并限制 CPU/内存安装；Node/Next/React/Sharp/better-sqlite3 版本保持原值。仅复用同机同版本/ABI 的已验证 SQLite native binary。先在隔离数据的临时实例验证 Webpack Worker 与转换，再切换生产。正式发布结果完成后追加。
+
+## 正式发布
+
+生产源 `989fe257c70b34df088286d3e41aedc247789bd0`，经 [PR #13](https://github.com/duanap/duanap-hub/pull/13) 合并并部署。视觉复核补齐了 Word 表头标记与代码块显式换行；回归同时验证 OOXML 和 DOCX → Markdown 表头语义。前一正式发布 `61f6429db4f8cebc8269dbeed631de5aaab87648` 保留供回退。
+
+服务器精确依赖安装、一个 worker 的 CPU/内存限额构建、原有临时实例 23 项及新增 Worker/DOCX/真实公网 IP/真实 GitHub/Studio 配置/卡片尺寸/Sharp 图片重编码/OG/暗色移动端/Linux 内容恢复均通过。正式公网再次验证 DOCX 导出与读入、表头往返、IPQuery 及公开 GitHub 卡片，首页、博客卡片、账号、Studio 登录、robots/Sitemap/Feed 和三个工具页正常；Studio 工具及 GitHub API 匿名访问返回 401，无脚本错误。
+
+最终审计：原 Core 内容、媒体、数据目录、管理员配置和账号密钥保留；Bridge 15 个运行文件未变，同版本 SQLite binary 与原文件一致，原生/Core 包版本一致。私有内容与身份快照完成，1028/1030/1031/9229 临时端口关闭。回退入口为服务器 `python3 /www/wwwroot/duanap-hub/shared/deploy-p3-tools.py rollback 989fe257c70b34df088286d3e41aedc247789bd0`，仅切回旧发布和原 github 模块开关，不回写旧会员或博客账本。
+
+剩余依赖外部配置/验收的 P3 工作：EdgeOne、搜索平台、游戏用户/战绩与 QQ 机器人；P2 本人同 QQ 最终关联与双站签到仍待验收。本批未申请新权限、发送真实邮件或改写生产用户/积分。

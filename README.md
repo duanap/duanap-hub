@@ -14,6 +14,8 @@
 
 P3 首批提供博客公开摘要、分类、封面与综合 RSS。服务器设置 `HUB_CONTENT_WORDPRESS_URL` 后，在 Studio“博客动态”启用、同步并编辑卡片；数据独立缓存，博客失败不阻塞首页。实现与验收见 [博客摘要模块](docs/P3-CONTENT-2026-10-16.md)。
 
+P3 第二批提供浏览器本地文档转换、公网 IP 查询、逐工具帮助/SEO/启停、通用首页区域尺寸和匿名 GitHub 卡片；入口为 Studio“工具配置”“GitHub 动态”“模块管理”。Word 仅支持 DOCX，IP 查询需用户同意第三方服务；见 [工具与 Widget 发布](docs/P3-TOOLS-WIDGETS-2026-10-17.md)。
+
 2026-10-14 已完成 P2-1 Bridge 与 P2-2 登录/独立会话/只读账号中心的隔离候选，默认关闭且未生产发布。账号专项 23/23、Core 36/36、恢复 7/7；真实隔离 WordPress/Bridge HTTPS 链路 16 项通过。完整子比/QQ/Redis、绑定和统一签到仍待验收，详见 [P2-2 记录与配置](docs/P2-ACCOUNTS-2026-10-14.md)。账号测试使用 `npx playwright test -c playwright.accounts.config.ts`，不加入普通 Core 测试实例。
 
 ## 三阶段交付
