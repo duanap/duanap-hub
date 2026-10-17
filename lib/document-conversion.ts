@@ -33,11 +33,11 @@ async function toWord(root:Node){
  const d=await import('docx')
  const runs=(n:Node,bold=false,italics=false):InstanceType<typeof d.TextRun>[]=>n.children?n.children.flatMap(c=>runs(c,bold||n.type==='strong',italics||n.type==='emphasis')):[new d.TextRun({text:n.type==='image'?'[图片：'+(n.alt||'未命名')+']':n.value||'',bold,italics,font:n.type==='inlineCode'?'Consolas':undefined})]
  const blocks=(nodes:Node[]):(InstanceType<typeof d.Paragraph>|InstanceType<typeof d.Table>)[]=>nodes.flatMap(n=>{
-  if(n.type==='table')return [new d.Table({rows:(n.children||[]).map(row=>new d.TableRow({children:(row.children||[]).map(cell=>new d.TableCell({children:[new d.Paragraph({children:runs(cell)})]}))}))})]
+  if(n.type==='table')return [new d.Table({rows:(n.children||[]).map((row,index)=>new d.TableRow({tableHeader:index===0,children:(row.children||[]).map(cell=>new d.TableCell({children:[new d.Paragraph({children:runs(cell)})]}))}))})]
   if(n.type==='list')return (n.children||[]).map((item,i)=>new d.Paragraph({children:[new d.TextRun(n.ordered?(i+1)+'. ':'• '),...runs(item)]}))
   if(n.type==='blockquote')return blocks(n.children||[])
   if(n.type==='heading')return [new d.Paragraph({heading:([d.HeadingLevel.HEADING_1,d.HeadingLevel.HEADING_2,d.HeadingLevel.HEADING_3,d.HeadingLevel.HEADING_4,d.HeadingLevel.HEADING_5,d.HeadingLevel.HEADING_6])[Math.min(6,n.depth||1)-1],children:runs(n)})]
-  return [new d.Paragraph({children:n.type==='code'?[new d.TextRun({text:n.value||'',font:'Consolas'})]:runs(n)})]
+  return [new d.Paragraph({children:n.type==='code'?(n.value||'').split('\n').map((text,index)=>new d.TextRun({text,break:index?1:undefined,font:'Consolas'})):runs(n)})]
  })
  return d.Packer.toBlob(new d.Document({sections:[{children:blocks(root.children||[])}]}))
 }
