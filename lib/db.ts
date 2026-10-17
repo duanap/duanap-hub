@@ -108,12 +108,19 @@ export function updateSiteSettings(patch: Partial<HubSettings>): HubSettings {
 }
 
 export function getModules(): ModuleState[] {
+  getDatabase().exec('CREATE TABLE IF NOT EXISTS module_layout(id TEXT PRIMARY KEY,size TEXT NOT NULL)')
+  const layouts=getDatabase().prepare('SELECT id,size FROM module_layout').all() as {id:string;size:string}[]
   const overrides = getDatabase().prepare('SELECT id, enabled, sort_order FROM module_settings').all() as {id:string;enabled:number;sort_order:number}[]
   const states = REGISTERED_MODULES.map((m, i) => {
     const row = overrides.find(v => v.id === m.id)
-    return { ...m, enabled: m.available && (row ? Boolean(row.enabled) : m.defaultEnabled), sortOrder: row?.sort_order ?? i }
+    const size=layouts.find(v=>v.id===m.id)?.size
+    return { ...m, enabled: m.available && (row ? Boolean(row.enabled) : m.defaultEnabled), sortOrder: row?.sort_order ?? i,size:(['small','medium','large'].includes(size||'')?size:'large') as ModuleState['size'] }
   })
   return states.sort((a,b) => a.sortOrder - b.sortOrder)
+}
+export function setModuleSize(id:string,size:string){
+  if(!isModuleId(id)||!['about','projects','games','tools','content','github'].includes(id)||!['small','medium','large'].includes(size))throw Error('首页卡片尺寸无效')
+  getModules();getDatabase().prepare('INSERT INTO module_layout VALUES(?,?) ON CONFLICT(id) DO UPDATE SET size=excluded.size').run(id,size);return getModules()
 }
 export function isEnabled(id: ModuleId): boolean {
   return getModules().some(m => m.id === id && m.enabled && m.available)

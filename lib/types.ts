@@ -27,7 +27,7 @@ export type HubSettings = {
   passwordToolDescription: string
 }
 
-export type ModuleId = 'about' | 'projects' | 'games' | 'tools' | 'content' | 'accounts' | 'edgeone'
+export type ModuleId = 'about' | 'projects' | 'games' | 'tools' | 'content' | 'accounts' | 'edgeone' | 'github'
 export type ModuleDefinition = {
   id: ModuleId
   name: string
@@ -36,7 +36,7 @@ export type ModuleDefinition = {
   defaultEnabled: boolean
   available: boolean
 }
-export type ModuleState = ModuleDefinition & { enabled: boolean; sortOrder: number }
+export type ModuleState = ModuleDefinition & { enabled: boolean; sortOrder: number;size:'small'|'medium'|'large' }
 
 export type Project = {
   id: number
