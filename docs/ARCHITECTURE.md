@@ -18,7 +18,7 @@ Core 拥有：公开首页与独立内容路由、duanap Studio、管理员独�
 - `tools`：工具目录及逐个启用的独立工具；密码生成在浏览器本地执行。
 - `content`：P3 首批已接匿名 WordPress 公开摘要、分类和封面。仅从服务器指定的公开 HTTPS 源读取，不依赖账号凭据；本地独立摘要表，首页/RSS 先读缓存，刷新有限时与退避，未配置或禁用不发请求。见 `P3-CONTENT-2026-10-16.md`。
 - `accounts`：主站本地身份、密码和普通会话独立保存；可选关联用 WordPress OAuth2 + S256 PKCE + Bridge 本人 API 读取积分、签到并提交唯一签到事件。博客仍是积分权威；普通账户不映射 Studio 管理员。新实现默认关闭，真实 QQ/UnionID 和博客账号关联须验收后开放。
-- `edgeone`：P3 服务端读 API，设置超时和带时间戳的缓存。
+- `edgeone`：P3 只读统计已部署，固定腾讯云端点/单站点/允许域名，TC3 签名；5 秒时限、30 分钟本地缓存、退避和模块代次检查。首页 SSR 不等上游，失败保留成功时段；长期凭据只在服务器私有文件，生产按用户选择保持关闭待配置。见 `P3-EDGEONE-2026-10-18.md`。
 - `bot`：P3 独立 QQ Bot 进程，只有绑定身份和业务 API，不直接写 WordPress 或游戏数据库。
 
 各模块生命周期：`registered -> enabled/disabled -> configured -> healthy/unavailable`。禁用后不渲染入口；可选页面返回 404 或约定的降级页。保存的配置保留，以供再次启用。
