@@ -1,3 +1,5 @@
+import {EdgeoneWidget} from '@/components/EdgeoneWidget'
+import {getEdgeoneSettings,edgeoneSnapshot} from '@/lib/edgeone'
 import Link from 'next/link'
 import { Markdown } from '@/components/Markdown'
 import type { Metadata } from 'next'
@@ -24,9 +26,10 @@ export default function HomePage() {
   const projects = showProjects ? listProjects({ publishedOnly: true, limit: site.homeProjectsLimit }) : []
   const games = showProjects ? listProjects({ publishedOnly: true, category: 'game', limit: 3 }) : []
   const recent = showProjects && site.homeShowUpdates ? recentPublicEntries(3) : []
-  const modules = getModules().filter(module => module.enabled && module.available && ['about','projects','games','tools','content','github'].includes(module.id) && (module.id!=='games'||showProjects))
+  const modules = getModules().filter(module => module.enabled && module.available && ['about','projects','games','tools','content','github','edgeone'].includes(module.id) && (module.id!=='games'||showProjects))
   const availableTools=publicTools()
   const renderModule=(module:ModuleState)=>{
+      if(module.id==='edgeone')return <EdgeoneWidget settings={getEdgeoneSettings()} initial={edgeoneSnapshot()}/>
       if(module.id==='github')return <GithubWidget settings={getGithubSettings()} initial={githubSnapshot()}/>
       if(module.id==='content')return <BlogWidget key="content" settings={getContentSettings()} initial={contentSnapshot()}/>
       if (module.id === 'about') return <section className="home-section" data-module="about" key="about">

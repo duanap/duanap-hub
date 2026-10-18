@@ -119,7 +119,7 @@ export function getModules(): ModuleState[] {
   return states.sort((a,b) => a.sortOrder - b.sortOrder)
 }
 export function setModuleSize(id:string,size:string){
-  if(!isModuleId(id)||!['about','projects','games','tools','content','github'].includes(id)||!['small','medium','large'].includes(size))throw Error('首页卡片尺寸无效')
+  if(!isModuleId(id)||!['about','projects','games','tools','content','github','edgeone'].includes(id)||!['small','medium','large'].includes(size))throw Error('首页卡片尺寸无效')
   getModules();getDatabase().prepare('INSERT INTO module_layout VALUES(?,?) ON CONFLICT(id) DO UPDATE SET size=excluded.size').run(id,size);return getModules()
 }
 export function isEnabled(id: ModuleId): boolean {
