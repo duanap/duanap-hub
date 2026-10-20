@@ -16,5 +16,6 @@ coverage/
 playwright-report/
 test-results/
 .tmp/
+prototypes/*.zip
 
 *.tsbuildinfo

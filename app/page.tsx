@@ -7,6 +7,7 @@ import { getSiteSettings, getModules, listProjects, recentPublicEntries, isEnabl
 import { pageMetadata, safeJsonLd } from '@/lib/seo'
 import { SITE_BASE } from '@/lib/config'
 import { ENTRY_LABELS } from '@/lib/types'
+import { HomeBoard } from '@/components/public/HomeBoard'
 
 export function generateMetadata(): Metadata {
   const site = getSiteSettings()
@@ -23,20 +24,10 @@ export default function HomePage() {
     { '@type': 'Person', '@id': SITE_BASE + '#person', name: site.displayName, url: SITE_BASE, description: site.tagline,
       image: site.avatarUrl ? new URL(site.avatarUrl, SITE_BASE).href : undefined, sameAs: [site.githubUrl, ...site.socialLinks.map(link => link.url)].filter(Boolean) },
   ] }
-  return <PublicShell>
+  return <PublicShell wide>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
-    <section className="hero">
-      {site.avatarUrl && <img className="hero-avatar" src={site.avatarUrl} alt={site.displayName + '头像'} />}
-      <span className="eyebrow">DUANAP / PERSONAL SPACE</span>
-      <h1>{site.displayName}<span className="hero-period">.</span></h1>
-      <p className="hero-lead">{site.tagline}</p>
-      <div className="hero-actions">
-        {showProjects && <Link className="action-primary" href="/projects">探索作品 <span>↗</span></Link>}
-        {isEnabled('about') && <Link className="action-secondary" href="/about">关于我</Link>}
-      </div>
-      <div className="contact-list">{site.githubUrl && <a href={site.githubUrl} target="_blank" rel="noopener noreferrer">GitHub ↗</a>}
-        {site.publicEmail && <a href={'mailto:' + site.publicEmail}>公开邮箱</a>}{site.socialLinks.map((link, index) => <a href={link.url} key={index} target="_blank" rel="noopener noreferrer">{link.label}</a>)}</div>
-    </section>
+    <HomeBoard />
+    <div className="hub-home-content">
     {modules.map(module => {
       if (module.id === 'about') return <section className="home-section" data-module="about" key="about">
         <div className="section-title"><div><span className="eyebrow">ABOUT ME</span><h2>关于我</h2></div><Link className="subtle-link" href="/about">完整介绍 ↗</Link></div>
@@ -59,5 +50,6 @@ export default function HomePage() {
       </section>
       return null
     })}
+    </div>
   </PublicShell>
 }

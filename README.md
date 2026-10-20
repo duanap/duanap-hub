@@ -6,6 +6,8 @@
 
 ## 开发状态与承诺边界
 
+**2026-10-21 当前工作树：** 六页复刻已接入动态管理，独立相册/随记/友链、首页13卡片编排、站点歌单和可选 WordPress 文章摘要已完成本地验收。62项离线生产浏览器/API + 11项备份恢复 + 1项环境检查通过，尚未部署本批。使用方式与边界见 [动态站本地验收](docs/LOCAL-DYNAMIC-ACCEPTANCE.md)。以下生产记录对应历史已发布版本。
+
 本仓库已完成 **P1 主站本地验收与主域部署**：项目运营、媒体管理、首页编排、Studio 编辑体验、SEO、基础工具和备份恢复。2026-10-13 在生产构建与服务器外部请求被阻断的条件下，26 项浏览器/API 用例通过；另有 6 项备份恢复和 1 项密码环境回归用例通过。按用户选择使用全新数据目录部署，保留原发布和数据供回滚；旧项目未导入。
 
 主站：[duanap.cn](https://duanap.cn/)；[www.duanap.cn](https://www.duanap.cn/) 跳转主域；后台：[Studio 登录](https://duanap.cn/duanap/login)。服务器构建、真实备份恢复、HTTPS、私有缓存头和 EdgeOne 静态缓存均已验证，见 [部署记录](docs/DEPLOYMENT-2026-10-13.md)。管理员沿用原账号和密码。
@@ -23,6 +25,8 @@
 详见 [三阶段开发计划](docs/ROADMAP-V1.1.md) 与 [完整需求基线](docs/REQUIREMENTS-V1.0.md)。
 
 ## 技术选择
+
+当前工作树已增加本地相册、个人随记和友链管理（尚未发布生产）。Studio 的「相册管理」「个人随记」「友链管理」支持草稿、发布、排序和媒体选择；随记还支持未来时间发布。公开页面继续保留已发布项目的派生内容，独立内容不依赖项目模块。详见 [实际完成状态](docs/DEVELOPMENT-STATUS.md)。
 
 - Next.js 16 App Router / React 19 / TypeScript；Node.js 22+。
 - 主站独立 SQLite（`better-sqlite3`）；WordPress 仍维持 MySQL/MariaDB。

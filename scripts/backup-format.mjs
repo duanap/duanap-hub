@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { gzipSync, gunzipSync } from 'node:zlib'
 import Database from 'better-sqlite3'
+import { CONTENT_SCHEMA_VERSION, CONTENT_TABLE_SHAPES } from './content-schema.mjs'
 
 export const MAX_ARCHIVE_BYTES = 128 * 1024 * 1024
 export const mediaName = name => typeof name === 'string' && /^[a-f0-9-]{36}\.webp$/.test(name)
@@ -16,7 +17,8 @@ export function validateDatabase(data) {
   const db = new Database(data, { readonly: true })
   try {
     if (db.pragma('quick_check', { simple: true }) !== 'ok') throw new Error('数据库完整性检查失败')
-    if (Number(db.pragma('user_version', { simple: true })) > 1) throw new Error('备份来自更高版本，不能使用旧应用恢复')
+    const version = Number(db.pragma('user_version', { simple: true }))
+    if (version > CONTENT_SCHEMA_VERSION) throw new Error('备份来自更高版本，不能使用旧应用恢复')
     const schema = {
       site_settings: { pk: 'id', columns: { id: 'INTEGER', json: 'TEXT' } },
       module_settings: { pk: 'id', columns: { id: 'TEXT', enabled: 'INTEGER', sort_order: 'INTEGER', updated_at: 'TEXT' } },
@@ -25,7 +27,11 @@ export function validateDatabase(data) {
       admin_sessions: { pk: 'token_hash', columns: { token_hash: 'TEXT', expires_at: 'INTEGER' } },
       admin_login_attempts: { pk: 'key', columns: { key: 'TEXT', count: 'INTEGER', reset_at: 'INTEGER' } },
     }
-    if (Number(db.pragma('user_version', { simple: true })) === 1) schema.project_aliases = { pk: 'slug', columns: { slug: 'TEXT', project_id: 'INTEGER' } }
+    if (version >= 1) schema.project_aliases = { pk: 'slug', columns: { slug: 'TEXT', project_id: 'INTEGER' } }
+    // Even legacy archives must not hide conflicting tables that prevent migration.
+    for (const [table, shape] of Object.entries(CONTENT_TABLE_SHAPES)) {
+      if (version >= 2 || db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table)) schema[table] = shape
+    }
     for (const [table, expected] of Object.entries(schema)) {
       const definition = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(table)
       if (!definition || /^\s*CREATE\s+VIRTUAL/i.test(definition.sql)) throw new Error('Hub 数据库结构无效：' + table)
@@ -44,6 +50,13 @@ export function validateDatabase(data) {
       if (!db.prepare('SELECT * FROM pragma_foreign_key_list(?)').all(table).some(key => key.table === 'projects' && key.from === 'project_id' && key.to === 'id' && key.on_delete === 'CASCADE')) throw new Error('Hub 数据库外键结构无效：' + table)
     }
     if (db.pragma('foreign_key_check').length) throw new Error('Hub 数据库引用不完整')
+    for (const table of Object.keys(CONTENT_TABLE_SHAPES).filter(table => schema[table])) if (db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count > 1000) throw new Error('独立内容数量超过应用上限')
+    if (schema.albums) {
+      for (const row of db.prepare('SELECT images FROM albums').all()) {
+        const images = JSON.parse(row.images)
+        if (!Array.isArray(images) || images.length > 48 || images.some(image => !image || typeof image.url !== 'string' || typeof image.caption !== 'string')) throw new Error('相册图片数据无效')
+      }
+    }
     const setting = db.prepare('SELECT json FROM site_settings WHERE id=1').get()
     if (!setting || !JSON.parse(setting.json) || typeof JSON.parse(setting.json) !== 'object' || Array.isArray(JSON.parse(setting.json))) throw new Error('Hub 站点配置无效')
     if (db.prepare("SELECT 1 FROM sqlite_master WHERE type IN ('trigger','view') LIMIT 1").get()) throw new Error('备份含不支持的数据库对象')

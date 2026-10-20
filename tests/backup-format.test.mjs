@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import Database from 'better-sqlite3'
 import { encodeBackup, decodeBackup } from '../scripts/backup-format.mjs'
+import { migrateContentSchema, snapshotBeforeContentMigration } from '../scripts/content-schema.mjs'
 
 const schema = `
 CREATE TABLE site_settings(id INTEGER PRIMARY KEY,json TEXT NOT NULL);
@@ -95,4 +96,91 @@ test('restore refuses a live application and corrupt archive without changing th
   const result = spawnSync(process.execPath, ['scripts/restore-backup.mjs', '--input', input, '--data-dir', target, '--confirm-restore'], { encoding: 'utf8' })
   assert.notEqual(result.status, 0)
   assert.deepEqual(readFileSync(path.join(target, 'hub.sqlite')), original)
+})
+
+function legacyWithAliases(file) {
+  const db = new Database(file)
+  db.exec(schema)
+  db.exec('CREATE TABLE project_aliases(slug TEXT PRIMARY KEY,project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE); PRAGMA user_version=1;')
+  db.prepare('INSERT INTO projects(id,slug,title) VALUES(1,?,?)').run('kept-project', '保留的项目')
+  return db
+}
+
+test('content schema migration snapshots committed WAL content and clears snapshot sessions', () => {
+  const folder = mkdtempSync(path.join(os.tmpdir(), 'hub-content-upgrade-'))
+  const db = legacyWithAliases(path.join(folder, 'hub.sqlite'))
+  db.pragma('journal_mode = WAL')
+  db.prepare('UPDATE projects SET title=? WHERE id=1').run('WAL 中的新标题')
+  db.prepare('INSERT INTO admin_sessions VALUES(?,?)').run('private-session', Date.now() + 60000)
+  const snapshot = snapshotBeforeContentMigration(db, folder)
+  const copy = new Database(snapshot, { readonly: true })
+  assert.equal(copy.pragma('user_version', { simple: true }), 1)
+  assert.equal(copy.prepare('SELECT title FROM projects').get().title, 'WAL 中的新标题')
+  assert.equal(copy.prepare('SELECT COUNT(*) AS count FROM admin_sessions').get().count, 0)
+  copy.close()
+  migrateContentSchema(db)
+  assert.equal(db.pragma('user_version', { simple: true }), 2)
+  assert.equal(db.prepare('SELECT title FROM projects').get().title, 'WAL 中的新标题')
+  for (const table of ['albums', 'notes', 'friend_links']) assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count, 0)
+  assert.equal(snapshotBeforeContentMigration(db, folder), null)
+  db.close()
+})
+
+test('failed content DDL rolls back new tables and preserves the legacy schema version', () => {
+  const folder = mkdtempSync(path.join(os.tmpdir(), 'hub-content-failure-'))
+  const db = legacyWithAliases(path.join(folder, 'hub.sqlite'))
+  db.exec('CREATE TABLE notes(id INTEGER PRIMARY KEY)')
+  const snapshot = snapshotBeforeContentMigration(db, folder)
+  assert.throws(() => migrateContentSchema(db))
+  assert.equal(db.pragma('user_version', { simple: true }), 1)
+  assert.equal(db.prepare("SELECT 1 FROM sqlite_master WHERE name='albums'").get(), undefined)
+  assert.equal(db.prepare('SELECT title FROM projects').get().title, '保留的项目')
+  assert.equal(existsSync(snapshot), true)
+  db.close()
+})
+
+test('version two content and media survive real restore and rollback to the prior database', () => {
+  const folder = mkdtempSync(path.join(os.tmpdir(), 'hub-content-restore-')), target = path.join(folder, 'data')
+  mkdirSync(target)
+  writeFileSync(path.join(target, 'hub.sqlite'), database('回滚前的项目'))
+  const db = legacyWithAliases(':memory:')
+  migrateContentSchema(db)
+  const name = '22222222-2222-2222-2222-222222222222.webp', url = '/media/' + name
+  db.prepare('INSERT INTO albums(title,images,published,created_at,updated_at) VALUES(?,?,?,?,?)').run('独立相册', JSON.stringify([{ url, caption: '保留说明' }]), 1, '2026-10-20', '2026-10-20')
+  db.prepare('INSERT INTO notes(title,body,image_url,published,published_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').run('独立随记', '**正文**', url, 1, '2026-10-20T00:00:00.000Z', '2026-10-20', '2026-10-20')
+  db.prepare('INSERT INTO friend_links(title,url,group_name,published,created_at,updated_at) VALUES(?,?,?,?,?,?)').run('独立友链', 'https://example.com', '朋友', 1, '2026-10-20', '2026-10-20')
+  const input = path.join(folder, 'content.hub.gz')
+  writeFileSync(input, encodeBackup(db.serialize(), [{ name, data: Buffer.from('preserved-raster') }]))
+  db.close()
+  const result = spawnSync(process.execPath, ['scripts/restore-backup.mjs', '--input', input, '--data-dir', target, '--confirm-restore'], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const restored = new Database(path.join(target, 'hub.sqlite'), { readonly: true })
+  assert.equal(restored.pragma('user_version', { simple: true }), 2)
+  assert.equal(JSON.parse(restored.prepare('SELECT images FROM albums').get().images)[0].caption, '保留说明')
+  assert.equal(restored.prepare('SELECT body FROM notes').get().body, '**正文**')
+  assert.equal(restored.prepare('SELECT group_name FROM friend_links').get().group_name, '朋友')
+  restored.close()
+  assert.equal(readFileSync(path.join(target, 'media', name), 'utf8'), 'preserved-raster')
+  const rollback = result.stdout.trim().split('rollback: ')[1]
+  const reversed = spawnSync(process.execPath, ['scripts/restore-backup.mjs', '--input', path.join(rollback, 'rollback.hub.gz'), '--data-dir', target, '--confirm-restore'], { encoding: 'utf8' })
+  assert.equal(reversed.status, 0, reversed.stderr)
+  const original = new Database(path.join(target, 'hub.sqlite'), { readonly: true })
+  assert.equal(original.prepare('SELECT title FROM projects').get().title, '回滚前的项目')
+  assert.equal(original.pragma('user_version', { simple: true }), 0)
+  original.close()
+})
+
+test('version two backup refuses missing content tables instead of silently losing data', () => {
+  const db = legacyWithAliases(':memory:')
+  migrateContentSchema(db)
+  db.exec('DROP TABLE friend_links')
+  assert.throws(() => encodeBackup(db.serialize(), []), /结构/)
+  db.close()
+})
+
+test('legacy backup refuses a conflicting reserved content table before restoring an unbootable database', () => {
+  const db = legacyWithAliases(':memory:')
+  db.exec('CREATE TABLE notes(id INTEGER PRIMARY KEY)')
+  assert.throws(() => encodeBackup(db.serialize(), []), /结构/)
+  db.close()
 })

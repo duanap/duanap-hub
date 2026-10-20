@@ -5,6 +5,7 @@ import { acquireRuntimeLease, DATA_DIR } from '@/lib/storage'
 import { DEFAULT_SETTINGS, validateSettingsPatch } from '@/lib/config'
 import { REGISTERED_MODULES, isModuleId } from '@/lib/modules'
 import type { EntryType, HubSettings, ModuleId, ModuleState, Project, ProjectCategory, ProjectEntry, ProjectStatus } from '@/lib/types'
+import { CONTENT_SCHEMA_VERSION, migrateContentSchema, snapshotBeforeContentMigration } from '@/scripts/content-schema.mjs'
 
 // The configured data directory is a runtime resource, not a build input.
 const folder = DATA_DIR
@@ -15,81 +16,84 @@ export function getDatabase() {
   acquireRuntimeLease()
   mkdirSync(folder, { recursive: true, mode: 0o700 })
   const db = new Database(path.join(folder, 'hub.sqlite'))
-  if (Number(db.pragma('user_version', { simple: true })) > 1) { db.close(); throw new Error('数据库版本高于当前应用，请使用匹配的版本') }
+  if (Number(db.pragma('user_version', { simple: true })) > CONTENT_SCHEMA_VERSION) { db.close(); throw new Error('数据库版本高于当前应用，请使用匹配的版本') }
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
   db.pragma('busy_timeout = 5000')
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS site_settings (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      json TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS module_settings (
-      id TEXT PRIMARY KEY,
-      enabled INTEGER NOT NULL CHECK (enabled IN (0,1)),
-      sort_order INTEGER NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS projects (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      slug TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      summary TEXT NOT NULL DEFAULT '',
-      body TEXT NOT NULL DEFAULT '',
-      category TEXT NOT NULL DEFAULT 'website',
-      status TEXT NOT NULL DEFAULT 'development',
-      version TEXT NOT NULL DEFAULT '',
-      external_url TEXT NOT NULL DEFAULT '',
-      repository_url TEXT NOT NULL DEFAULT '',
-      cover_url TEXT NOT NULL DEFAULT '',
-      featured INTEGER NOT NULL DEFAULT 0 CHECK (featured IN (0,1)),
-      published INTEGER NOT NULL DEFAULT 0 CHECK (published IN (0,1)),
-      seo_title TEXT NOT NULL DEFAULT '',
-      seo_description TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS project_entries (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      type TEXT NOT NULL,
-      title TEXT NOT NULL,
-      body TEXT NOT NULL DEFAULT '',
-      published INTEGER NOT NULL DEFAULT 0 CHECK (published IN (0,1)),
-      published_at TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS admin_sessions (
-      token_hash TEXT PRIMARY KEY,
-      expires_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS admin_login_attempts (
-      key TEXT PRIMARY KEY,
-      count INTEGER NOT NULL,
-      reset_at INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_projects_published ON projects(published, category, updated_at);
-    CREATE INDEX IF NOT EXISTS idx_entries_public ON project_entries(published, published_at);
-    CREATE TABLE IF NOT EXISTS project_aliases (
-      slug TEXT PRIMARY KEY,
-      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE
-    );
-  `)
-  const additions: Record<string, Record<string, string>> = {
-    projects: { icon_url: "TEXT NOT NULL DEFAULT ''", group_name: "TEXT NOT NULL DEFAULT ''", tags: "TEXT NOT NULL DEFAULT '[]'", screenshots: "TEXT NOT NULL DEFAULT '[]'", version_date: "TEXT NOT NULL DEFAULT ''", sort_order: 'INTEGER NOT NULL DEFAULT 0' },
-    project_entries: { roadmap_status: "TEXT NOT NULL DEFAULT 'planned'", version: "TEXT NOT NULL DEFAULT ''", effective_at: "TEXT NOT NULL DEFAULT ''" },
-  }
-  db.transaction(() => {
-    for (const [table, columns] of Object.entries(additions)) {
-      const existing = (db.pragma('table_info(' + table + ')') as { name: string }[]).map(column => column.name)
-      for (const [column, definition] of Object.entries(columns)) if (!existing.includes(column)) db.exec('ALTER TABLE ' + table + ' ADD COLUMN ' + column + ' ' + definition)
+  try {
+    snapshotBeforeContentMigration(db, folder)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS site_settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        json TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS module_settings (
+        id TEXT PRIMARY KEY,
+        enabled INTEGER NOT NULL CHECK (enabled IN (0,1)),
+        sort_order INTEGER NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS projects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL DEFAULT '',
+        body TEXT NOT NULL DEFAULT '',
+        category TEXT NOT NULL DEFAULT 'website',
+        status TEXT NOT NULL DEFAULT 'development',
+        version TEXT NOT NULL DEFAULT '',
+        external_url TEXT NOT NULL DEFAULT '',
+        repository_url TEXT NOT NULL DEFAULT '',
+        cover_url TEXT NOT NULL DEFAULT '',
+        featured INTEGER NOT NULL DEFAULT 0 CHECK (featured IN (0,1)),
+        published INTEGER NOT NULL DEFAULT 0 CHECK (published IN (0,1)),
+        seo_title TEXT NOT NULL DEFAULT '',
+        seo_description TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS project_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL DEFAULT '',
+        published INTEGER NOT NULL DEFAULT 0 CHECK (published IN (0,1)),
+        published_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS admin_sessions (
+        token_hash TEXT PRIMARY KEY,
+        expires_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS admin_login_attempts (
+        key TEXT PRIMARY KEY,
+        count INTEGER NOT NULL,
+        reset_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_projects_published ON projects(published, category, updated_at);
+      CREATE INDEX IF NOT EXISTS idx_entries_public ON project_entries(published, published_at);
+      CREATE TABLE IF NOT EXISTS project_aliases (
+        slug TEXT PRIMARY KEY,
+        project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE
+      );
+    `)
+    const additions: Record<string, Record<string, string>> = {
+      projects: { icon_url: "TEXT NOT NULL DEFAULT ''", group_name: "TEXT NOT NULL DEFAULT ''", tags: "TEXT NOT NULL DEFAULT '[]'", screenshots: "TEXT NOT NULL DEFAULT '[]'", version_date: "TEXT NOT NULL DEFAULT ''", sort_order: 'INTEGER NOT NULL DEFAULT 0' },
+      project_entries: { roadmap_status: "TEXT NOT NULL DEFAULT 'planned'", version: "TEXT NOT NULL DEFAULT ''", effective_at: "TEXT NOT NULL DEFAULT ''" },
     }
-    db.pragma('user_version = 1')
-  })()
-  db.prepare('INSERT OR IGNORE INTO site_settings (id, json) VALUES (1, ?)').run(JSON.stringify(DEFAULT_SETTINGS))
-  singleton = db
-  return db
+    db.transaction(() => {
+      for (const [table, columns] of Object.entries(additions)) {
+        const existing = (db.pragma('table_info(' + table + ')') as { name: string }[]).map(column => column.name)
+        for (const [column, definition] of Object.entries(columns)) if (!existing.includes(column)) db.exec('ALTER TABLE ' + table + ' ADD COLUMN ' + column + ' ' + definition)
+      }
+      migrateContentSchema(db)
+    })()
+    db.prepare('INSERT OR IGNORE INTO site_settings (id, json) VALUES (1, ?)').run(JSON.stringify(DEFAULT_SETTINGS))
+    singleton = db
+    return db
+  } catch (error) { db.close(); throw error }
 }
 
 export function getSiteSettings(): HubSettings {
