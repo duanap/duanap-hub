@@ -1,6 +1,6 @@
 import { getSiteSettings, isEnabled, recentPublicEntries } from '@/lib/db'
 import { SITE_BASE } from '@/lib/config'
-import { listPersonalNotes } from '@/lib/content'
+import { listPersonalNotes } from '@/lib/managed-content'
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
 function xml(s:string){return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&apos;')}

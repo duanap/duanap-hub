@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { guardAdminMutation } from '@/lib/admin-auth'
 import { apiError, parseJson } from '@/lib/api'
-import { contentId, contentKind, deleteContent, listContent, updateContent } from '@/lib/content'
+import { contentId, contentKind, deleteContent, listContent, updateContent } from '@/lib/managed-content'
 import { withDataLock } from '@/lib/storage'
 
 export const runtime = 'nodejs'

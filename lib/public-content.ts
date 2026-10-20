@@ -1,5 +1,5 @@
 import { getSiteSettings, isEnabled, listProjects, recentPublicEntries } from '@/lib/db'
-import { listAlbums, listFriendLinks, listPersonalNotes } from '@/lib/content'
+import { listAlbums, listFriendLinks, listPersonalNotes } from '@/lib/managed-content'
 import type { AlbumImage, EntryType } from '@/lib/types'
 
 type PublicAlbum = { id: string; title: string; summary: string; coverUrl: string; images: AlbumImage[]; href: string }
