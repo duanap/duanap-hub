@@ -21,3 +21,13 @@ test('administrator endpoints reject forged origins and oversized JSON', async (
   expect(response.headers()['cache-control']).toContain('no-store')
   expect(response.headers()['x-robots-tag']).toContain('noindex')
 })
+
+test('server account gate stays closed even if Studio module is enabled',async({request})=>{
+  const headers={Origin:'http://127.0.0.1:1027'}
+  await request.post('/api/studio/login',{headers,data:{username:'duanap',password:process.env.HUB_TEST_ADMIN_PASSWORD}})
+  expect((await request.patch('/api/studio/modules',{headers,data:{id:'accounts',enabled:true}})).status()).toBe(200)
+  try{
+    for(const route of ['/account','/api/auth/login','/api/account/me'])expect((await request.get(route)).status()).toBe(404)
+    expect((await request.get('/')).status()).toBe(200)
+  }finally{await request.patch('/api/studio/modules',{headers,data:{id:'accounts',enabled:false}})}
+})

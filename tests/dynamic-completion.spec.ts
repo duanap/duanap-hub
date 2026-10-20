@@ -20,7 +20,7 @@ async function settings(page: Page, data: Partial<HubSettings>) {
 }
 async function fixture(mode: string, posts: unknown[] = []) { await mkdir(dataDirectory(), { recursive: true }); await writeFile(fixtureFile(), JSON.stringify({ mode, posts })) }
 function posts(count: number) {
-  return Array.from({ length: count }, (_, index) => ({ id: index + 1, status: 'publish', date_gmt: '2026-01-01T00:00:00', link: `https://wordpress-fixture.invalid/subsite/posts/${index + 1}`, title: { rendered: `文章 ${index + 1} &amp; 想法` }, excerpt: { rendered: '<p>仅公开摘要 <strong>正文</strong><script>window.evil=1</script></p>' }, _embedded: { 'wp:term': [[{ name: index % 2 ? '生活' : '开发' }]], 'wp:featuredmedia': [] } }))
+  return Array.from({ length: count }, (_, index) => ({ id: index + 1, status: 'publish', date_gmt: '2026-01-01T00:00:00', link: `https://wordpress-fixture.invalid/subsite/posts/${index + 1}`, title: { rendered: `文章 ${index + 1} &amp; 想法` }, excerpt: { rendered: '<p>仅公开摘要 <strong>正文</strong><script>window.evil=1</script></p>', protected: false }, categories: [index % 2 ? 2 : 1], _embedded: { 'wp:term': [[{ name: index % 2 ? '生活' : '开发' }]], 'wp:featuredmedia': [] } }))
 }
 async function sync(page: Page) { return (await page.request.post('/api/studio/blog', { headers })).json() }
 async function requests() { return (await readFile(fixtureFile() + '.requests', 'utf8').catch(() => '')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) }
@@ -29,10 +29,12 @@ test.beforeEach(async ({ page }) => {
   await login(page)
   original = await settings(page, {})
   await page.request.patch('/api/studio/modules', { headers, data: { id: 'blog', enabled: true } })
+  await page.request.patch('/api/studio/modules', { headers, data: { id: 'content', enabled: true } })
 })
 test.afterEach(async ({ page }) => {
   await login(page)
   await settings(page, original)
+  await page.request.patch('/api/studio/modules', { headers, data: { id: 'content', enabled: false } })
   await page.request.patch('/api/studio/modules', { headers, data: { id: 'blog', enabled: true } })
 })
 
@@ -175,7 +177,7 @@ test('WordPress index supports search, tags, pagination and safe canonical excer
   await fixture('success', [...values,
     { ...values[0], id: 13, status: 'draft', title: { rendered: '不应公开的草稿' } },
     { ...values[0], id: 14, date_gmt: '2099-01-01T00:00:00', title: { rendered: '不应公开的未来文章' } },
-    { ...values[0], id: 15, link: 'javascript:alert(1)' },
+    { ...values[0], id: 15, excerpt: { rendered: 'PRIVATE_EXCERPT_MUST_NOT_LEAK', protected: true } },
   ])
   await settings(page, { blogSyncEnabled: true })
   expect(await sync(page)).toMatchObject({ status: 'ready', count: 12, stale: false })
@@ -202,7 +204,7 @@ test('WordPress index supports search, tags, pagination and safe canonical excer
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
   await page.screenshot({ path: 'test-results/blog-dynamic-mobile.png', fullPage: true })
   expect((await page.request.get('/blog/999999')).status()).toBe(404)
-  expect((await requests()).every(request => request.redirect === 'error' && new URL(request.url).pathname === '/subsite/wp-json/wp/v2/posts')).toBeTruthy()
+  expect((await requests()).every(request => request.redirect === 'manual' && new URL(request.url).pathname.startsWith('/subsite/wp-json/wp/v2/'))).toBeTruthy()
 })
 
 test('WordPress fetch is bounded to five pages and Studio can refresh without editing originals', async ({ page }) => {
@@ -212,7 +214,7 @@ test('WordPress fetch is bounded to five pages and Studio can refresh without ed
   await page.goto('/duanap'); await page.getByRole('button', { name: '主页资料', exact: true }).click()
   await page.getByRole('button', { name: '刷新文章摘要', exact: true }).click()
   await expect(page.getByRole('status')).toContainText('已同步 500 篇公开摘要')
-  expect((await requests()).length - before).toBe(5)
+  expect((await requests()).slice(before).filter(request => new URL(request.url).pathname.endsWith('/posts'))).toHaveLength(5)
   await page.goto('/blog?page=9999')
   await expect(page.locator('.hub-pagination')).toContainText('56 / 56')
   await expect(page.locator('.hub-status-note')).toContainText('最近500篇')
@@ -223,11 +225,12 @@ test('WordPress fetch is bounded to five pages and Studio can refresh without ed
 test('timeouts, invalid and oversized WordPress responses preserve cache and never block Core', async ({ page }) => {
   await fixture('success', posts(3)); await settings(page, { blogSyncEnabled: true })
   expect((await sync(page)).status).toBe('ready')
-  const cacheFile = path.join(dataDirectory(), 'cache/wordpress-index.json'), baseline = await readFile(cacheFile, 'utf8')
+  const cachedPosts = () => { const db = new Database(path.join(dataDirectory(), 'hub.sqlite'), { readonly: true }); try { const cache = JSON.parse((db.prepare('SELECT json FROM content_cache WHERE id=1').get() as {json:string}).json); return { posts: cache.posts, syncedAt: cache.syncedAt } } finally { db.close() } }
+  const baseline = cachedPosts()
   for (const mode of ['failure', 'invalid', 'oversize', 'timeout']) {
     await fixture(mode)
     expect(await sync(page)).toMatchObject({ status: 'unavailable', count: 3, stale: true })
-    expect(await readFile(cacheFile, 'utf8')).toBe(baseline)
+    expect(cachedPosts()).toEqual(baseline)
   }
   await page.goto('/blog')
   await expect(page.locator('.hub-article')).toHaveCount(3)

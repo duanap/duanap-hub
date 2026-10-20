@@ -53,7 +53,7 @@ try {
     if (readFileSync(runtime, 'utf8') !== previous) throw new Error('运行锁已变化')
     unlinkSync(runtime)
   }
-  for (const name of ['hub.sqlite', 'hub.sqlite-wal', 'hub.sqlite-shm', 'media', 'backups']) regular(within(name))
+  for (const name of ['hub.sqlite', 'hub.sqlite-wal', 'hub.sqlite-shm', 'accounts.sqlite', 'accounts.sqlite-wal', 'accounts.sqlite-shm', 'members.sqlite', 'members.sqlite-wal', 'members.sqlite-shm', 'media', 'backups']) regular(within(name))
   staging = within('.restore-' + randomUUID()); rollback = within('rollback-' + randomUUID())
   mkdirSync(staging, { mode: 0o700 }); mkdirSync(path.join(staging, 'media'))
   writeFileSync(path.join(staging, 'hub.sqlite'), backup.database, { mode: 0o600 })
@@ -61,6 +61,13 @@ try {
   try { restored.pragma('secure_delete = ON'); restored.exec('DELETE FROM admin_sessions; DELETE FROM admin_login_attempts; VACUUM;') } finally { restored.close() }
   for (const file of backup.media) writeFileSync(path.join(staging, 'media', file.name), file.data, { flag: 'wx', mode: 0o600 })
   mkdirSync(rollback, { mode: 0o700 })
+  let membersDatabase
+  if (existsSync(within('members.sqlite'))) {
+    membersDatabase = new Database(within('members.sqlite'), { readonly: true, fileMustExist: true })
+    if (Number(membersDatabase.pragma('user_version', { simple: true })) !== 1 || membersDatabase.pragma('integrity_check', { simple: true }) !== 'ok') throw new Error('主站账号库未通过恢复前检查')
+    await membersDatabase.backup(path.join(rollback, 'members.sqlite'))
+    membersDatabase.close(); membersDatabase = null
+  }
   const database = within('hub.sqlite')
   if (existsSync(database)) {
     const old = new Database(database)
@@ -95,6 +102,22 @@ try {
     safeToRelease = true
     throw cause
   }
+  let memberSessionsCleared = false
+  if (existsSync(within('members.sqlite'))) {
+    try {
+      const members = new Database(within('members.sqlite'))
+      try {
+        members.pragma('secure_delete=ON')
+        members.pragma('journal_mode=DELETE')
+        members.transaction(() => members.exec("DELETE FROM member_sessions; DELETE FROM member_flows; DELETE FROM member_attempts; UPDATE member_blogs SET authorized=0,payload='';"))()
+        members.exec('VACUUM;'); members.pragma('journal_mode=WAL')
+        if (members.pragma('integrity_check', { simple: true }) !== 'ok') throw new Error('主站账号库恢复后检查失败')
+      } finally { members.close() }
+      memberSessionsCleared = true
+    } catch { /* Keep prior OAuth storage if local account invalidation failed. */ }
+  }
+  if (!existsSync(within('members.sqlite')) || memberSessionsCleared) for (const name of ['accounts.sqlite','accounts.sqlite-wal','accounts.sqlite-shm']) if (existsSync(within(name))) unlinkSync(within(name))
+  console.log(JSON.stringify({ restored: true, memberSessionsCleared, blogLinksRequireReauthorization: memberSessionsCleared }))
   console.log('恢复成功。rollback: ' + rollback)
 } catch (cause) {
   console.error(cause instanceof Error ? cause.message : '恢复失败')

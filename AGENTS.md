@@ -15,7 +15,7 @@
 - Core 不依赖扩展 API 启动。WordPress/游戏/EdgeOne 故障时首页、项目、后台、SEO 仍可工作。
 - 不复制旧生产 SQLite、不自动迁移或覆盖正在运行的站点。
 - 保持敏感信息在服务器端 `.env.local` 与受控持久化目录；不提交密码、Token、用户数据。
-- 账号、签到积分归 WordPress 权威；游戏角色与战绩归游戏服务；主站只持有明确的本地内容数据。
+- 主站账号独立管理（2026-10-16 用户调整）；博客账号通过授权关联，签到、积分与流水仍归 WordPress 权威；游戏角色与战绩归游戏服务。具体见 `docs/P2-INDEPENDENT-ACCOUNTS.md`。
 - Studio 管理员独立鉴权；普通用户身份不能直接映射管理员权限。
 - 对修改代码执行有针对性的本地检查，发现 npm 依赖不可用时明确记录无法完成的检查，不假称已通过。
 - 不强制使用 GitHub Actions、付费 GitHub 功能、Docker/Kubernetes 或 CI；上线按宝塔/Nginx 现有习惯实现。

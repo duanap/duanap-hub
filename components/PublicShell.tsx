@@ -3,6 +3,7 @@ import { getModules, getSiteSettings, isEnabled } from '@/lib/db'
 import { PublicNavigation, type PublicNavLink } from '@/components/public/PublicNavigation'
 import { HubIcon } from '@/components/public/HubIcon'
 import type { ModuleId } from '@/lib/types'
+import { QQLoginLink } from '@/components/QQLoginLink'
 
 export function PublicShell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   const site = getSiteSettings()
@@ -16,12 +17,13 @@ export function PublicShell({ children, wide = false }: { children: ReactNode; w
     { module: 'games', dependent: 'projects', link: { path: '/games', label: '游戏', icon: 'games' } },
     { module: 'tools', link: { path: '/tools', label: '工具', icon: 'tools' } },
   ]
+  if (process.env.HUB_ACCOUNTS_ENABLED === '1') definitions.push({ module: 'accounts', link: { path: '/account', label: '账号', icon: 'about' } })
   const modules = getModules()
   const enabled = definitions.filter(item => isEnabled(item.module) && (!item.dependent || isEnabled(item.dependent)))
   const order = (id: ModuleId) => modules.find(module => module.id === id)?.sortOrder ?? 99
   const links = enabled.sort((a, b) => order(a.module) - order(b.module)).map(item => item.link)
   return <div className="public-app hub-public">
-    <PublicNavigation links={links} siteName={site.siteName} />
+    <PublicNavigation links={links} siteName={site.siteName} loginLink={<QQLoginLink compact />} />
     <main id="main-content" className={'site-main hub-main' + (wide ? ' hub-main-wide' : '')}>{children}</main>
     <footer className="site-footer hub-footer">
       <div>© {new Date().getFullYear()} {site.copyright||site.displayName}</div>

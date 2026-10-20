@@ -19,3 +19,4 @@ test-results/
 prototypes/*.zip
 
 *.tsbuildinfo
+__pycache__/

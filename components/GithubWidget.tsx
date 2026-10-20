@@ -1,0 +1,10 @@
+'use client'
+import {useEffect,useState} from 'react'
+import type {GithubSettings,GithubSnapshot} from '@/lib/github-types'
+export function GithubWidget({settings,initial}:{settings:GithubSettings;initial:GithubSnapshot}){
+ const [data,setData]=useState(initial),[loading,setLoading]=useState(false),[hidden,setHidden]=useState(false)
+ useEffect(()=>{const c=new AbortController();setLoading(true);void fetch('/api/github',{cache:'no-store',signal:c.signal}).then(async r=>{if(r.status===404){setHidden(true);return}if(!r.ok)throw Error();const value=await r.json();if(!c.signal.aborted)setData(value.snapshot)}).catch(()=>{if(!c.signal.aborted)setData(p=>({...p,error:'GitHub 动态暂不可用',status:p.syncedAt?'stale':'error'}))}).finally(()=>{if(!c.signal.aborted)setLoading(false)});return()=>c.abort()},[])
+ if(hidden)return null
+ return <section className="home-section" data-module="github"><div className="section-title"><div><span className="eyebrow">OPEN SOURCE</span><h2>{settings.title}</h2></div></div><p className="blog-description">{settings.description}</p><p className="blog-sync-status" role="status">来源：GitHub 公开 API · {data.syncedAt?'最近成功同步 '+new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',dateStyle:'medium',timeStyle:'short'}).format(new Date(data.syncedAt)):'尚未同步'}{data.status==='stale'?' · 缓存已过期':''}{loading?' · 检查更新中':''}{data.error?' · '+data.error:''}</p>
+ <div className="github-grid">{data.repositories.map(repo=><article className="content-card github-card" key={repo.name}><h3><a href={repo.url} rel="noreferrer">{repo.name} ↗</a></h3><p>{repo.description}</p><p className="muted">Star {repo.stars} · Fork {repo.forks}</p><p>最近推送：{repo.pushedAt?repo.pushedAt.slice(0,10):'暂无记录'}</p><p>版本标签：{repo.tags.join('、')||'暂无公开标签'}</p>{repo.release?<p>最近 Release：<a href={repo.release.url} rel="noreferrer">{repo.release.tag} ↗</a></p>:<p>暂无公开 Release</p>}</article>)}</div>{!data.repositories.length&&<div className="soft-placeholder">{data.status==='unconfigured'?'尚未选择公开仓库':'仓库数据将在成功同步后显示，暂不提供统计值。'}</div>}<p className="blog-sync-status">仓库标签和 Release 仅供参考，不替代项目人工维护的正式版本。</p></section>
+}

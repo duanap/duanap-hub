@@ -1,0 +1,10 @@
+'use client'
+import {useEffect,useState} from 'react'
+import {edgeoneNumber,edgeoneBytes,edgeoneHitRate,type EdgeoneSettings,type EdgeoneSnapshot} from '@/lib/edgeone-types'
+const time=(v:string)=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',dateStyle:'medium',timeStyle:'short'}).format(new Date(v))
+export function EdgeoneWidget({settings,initial}:{settings:EdgeoneSettings;initial:EdgeoneSnapshot}){
+  const [data,setData]=useState(initial),[hidden,setHidden]=useState(false)
+  useEffect(()=>{const c=new AbortController();void fetch('/api/edgeone',{cache:'no-store',signal:c.signal}).then(async r=>{if(r.status===404){setHidden(true);return}if(!r.ok)throw Error();const v=await r.json();if(!c.signal.aborted)setData(v.snapshot)}).catch(()=>{if(!c.signal.aborted)setData(p=>({...p,error:'EdgeOne 数据暂不可用，保留最近成功统计'}))});return()=>c.abort()},[])
+  if(hidden)return null
+  return <section className="home-section" data-module="edgeone"><div className="section-title"><div><span className="eyebrow">EDGEONE ANALYTICS</span><h2>{settings.title}</h2></div></div><p>{settings.description}</p><p className="blog-sync-status">统计域名：{settings.domains.join('、')} · {settings.period==='7d'?'近 7 天':'近 24 小时'}</p><p className="blog-sync-status">{data.start&&data.end?time(data.start)+' 至 '+time(data.end)+'（北京时间，完整小时）':'等待首次成功同步'}</p><div className="edgeone-grid">{[['访问请求',edgeoneNumber(data.requests)],['响应流量',edgeoneBytes(data.bytes)],['缓存命中率',edgeoneHitRate(data)],['Web 防护缓释',edgeoneNumber(data.mitigated)]].map(([title,value])=><article className="content-card" key={title}><span className="muted">{title}</span><strong className="edgeone-value">{value}</strong></article>)}</div><p className="blog-sync-status" role="status">来源：腾讯云 EdgeOne API · {data.syncedAt?'最近成功同步 '+time(data.syncedAt):'尚未同步'}{data.status==='stale'?' · 统计已过期':''}{data.error?' · '+data.error:''}</p><p className="blog-sync-status">请求量不等于访客数（UV）或页面浏览量（PV）。流量包含 Web 防护缓释；缓存命中率按命中 /（命中 + 未命中）请求计算，不含动态及其他请求，非流量命中率。缓释指拦截或挑战，不是攻击事件总数。数据约延迟 10 分钟，按完整小时汇总；暂无数据不代表 0。</p></section>
+}

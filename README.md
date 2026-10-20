@@ -6,13 +6,21 @@
 
 ## 开发状态与承诺边界
 
+**发布整合：** 复刻版已对齐当前主线，保留线上已有会员、QQ/博客关联、签到、工具和数据卡片；服务器基线为 `222a106`。此前74项为独立布局批次，整合后的检查矩阵和切换边界以 [2026-10-21 发布记录](docs/RELEASE-LAYOUT-2026-10-21.md) 为准。
+
 **2026-10-21 当前工作树：** 六页复刻已接入动态管理，独立相册/随记/友链、首页13卡片编排、站点歌单和可选 WordPress 文章摘要已完成本地验收。62项离线生产浏览器/API + 11项备份恢复 + 1项环境检查通过，尚未部署本批。使用方式与边界见 [动态站本地验收](docs/LOCAL-DYNAMIC-ACCEPTANCE.md)。以下生产记录对应历史已发布版本。
 
 本仓库已完成 **P1 主站本地验收与主域部署**：项目运营、媒体管理、首页编排、Studio 编辑体验、SEO、基础工具和备份恢复。2026-10-13 在生产构建与服务器外部请求被阻断的条件下，26 项浏览器/API 用例通过；另有 6 项备份恢复和 1 项密码环境回归用例通过。按用户选择使用全新数据目录部署，保留原发布和数据供回滚；旧项目未导入。
 
-主站：[duanap.cn](https://duanap.cn/)；[www.duanap.cn](https://www.duanap.cn/) 跳转主域；后台：[Studio 登录](https://duanap.cn/duanap/login)。服务器构建、真实备份恢复、HTTPS、私有缓存头和 EdgeOne 静态缓存均已验证，见 [部署记录](docs/DEPLOYMENT-2026-10-13.md)。管理员沿用原账号和密码。
+主站：[duanap.cn](https://duanap.cn/)；[www.duanap.cn](https://www.duanap.cn/) 跳转主域；后台：[Studio 登录](https://duanap.cn/duanap/login)。服务器构建、真实备份恢复、HTTPS、私有缓存头和 EdgeOne 静态缓存均已验证，见 [部署记录](docs/DEPLOYMENT-2026-10-13.md)。管理员凭据只在服务器私有环境维护。
 
 第二阶段接入 `blog.duanap.cn` 的 WordPress/子比用户与积分；第三阶段逐个接入游戏、QQ 机器人、博客文章及 EdgeOne/GitHub 数据。上述扩展服务在第一阶段**不是运行依赖**。
+
+P3 首批提供博客公开摘要、分类、封面与综合 RSS。服务器设置 `HUB_CONTENT_WORDPRESS_URL` 后，在 Studio“博客动态”启用、同步并编辑卡片；数据独立缓存，博客失败不阻塞首页。实现与验收见 [博客摘要模块](docs/P3-CONTENT-2026-10-16.md)。
+
+P3 第二批提供浏览器本地文档转换、公网 IP 查询、逐工具帮助/SEO/启停、通用首页区域尺寸和匿名 GitHub 卡片；入口为 Studio“工具配置”“GitHub 动态”“模块管理”。Word 仅支持 DOCX，IP 查询需用户同意第三方服务；见 [工具与 Widget 发布](docs/P3-TOOLS-WIDGETS-2026-10-17.md)。
+
+2026-10-14 已完成 P2-1 Bridge 与 P2-2 登录/独立会话/只读账号中心的隔离候选，默认关闭且未生产发布。账号专项 23/23、Core 36/36、恢复 7/7；真实隔离 WordPress/Bridge HTTPS 链路 16 项通过。完整子比/QQ/Redis、绑定和统一签到仍待验收，详见 [P2-2 记录与配置](docs/P2-ACCOUNTS-2026-10-14.md)。账号测试使用 `npx playwright test -c playwright.accounts.config.ts`，不加入普通 Core 测试实例。
 
 ## 三阶段交付
 

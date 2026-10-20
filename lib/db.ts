@@ -112,12 +112,19 @@ export function updateSiteSettings(patch: Partial<HubSettings>): HubSettings {
 }
 
 export function getModules(): ModuleState[] {
+  getDatabase().exec('CREATE TABLE IF NOT EXISTS module_layout(id TEXT PRIMARY KEY,size TEXT NOT NULL)')
+  const layouts=getDatabase().prepare('SELECT id,size FROM module_layout').all() as {id:string;size:string}[]
   const overrides = getDatabase().prepare('SELECT id, enabled, sort_order FROM module_settings').all() as {id:string;enabled:number;sort_order:number}[]
   const states = REGISTERED_MODULES.map((m, i) => {
     const row = overrides.find(v => v.id === m.id)
-    return { ...m, enabled: m.available && (row ? Boolean(row.enabled) : m.defaultEnabled), sortOrder: row?.sort_order ?? i }
+    const size=layouts.find(v=>v.id===m.id)?.size
+    return { ...m, enabled: m.available && (row ? Boolean(row.enabled) : m.defaultEnabled), sortOrder: row?.sort_order ?? i,size:(['small','medium','large'].includes(size||'')?size:'large') as ModuleState['size'] }
   })
   return states.sort((a,b) => a.sortOrder - b.sortOrder)
+}
+export function setModuleSize(id:string,size:string){
+  if(!isModuleId(id)||!['about','projects','games','tools','content','github','edgeone'].includes(id)||!['small','medium','large'].includes(size))throw Error('首页卡片尺寸无效')
+  getModules();getDatabase().prepare('INSERT INTO module_layout VALUES(?,?) ON CONFLICT(id) DO UPDATE SET size=excluded.size').run(id,size);return getModules()
 }
 export function isEnabled(id: ModuleId): boolean {
   return getModules().some(m => m.id === id && m.enabled && m.available)
@@ -127,9 +134,13 @@ export function setModuleEnabled(id: string, enabled: boolean) {
   const definition = REGISTERED_MODULES.find(m => m.id === id)!
   if (!definition.available && enabled) throw new Error('该模块尚未实现，暂无法启用')
   const current = getModules().find(m => m.id === id)!
+  const last = getDatabase().prepare('SELECT updated_at FROM module_settings WHERE id=?').get(id) as {updated_at:string}|undefined
+  // Keep lifecycle generations distinct even if disable/re-enable share one millisecond.
+  const previous = last ? Date.parse(last.updated_at) : 0
+  const changedAt = new Date(Math.max(Date.now(), (Number.isFinite(previous) ? previous : 0) + 1)).toISOString()
   getDatabase().prepare(`INSERT INTO module_settings (id, enabled, sort_order, updated_at)
     VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET enabled=excluded.enabled, updated_at=excluded.updated_at`)
-    .run(id, enabled ? 1 : 0, current.sortOrder, new Date().toISOString())
+    .run(id, enabled ? 1 : 0, current.sortOrder, changedAt)
   return getModules()
 }
 export function reorderModules(ids: string[]) {
@@ -141,7 +152,7 @@ export function reorderModules(ids: string[]) {
     ids.forEach((id, idx)=> {
       const old = getModules().find(m=>m.id===id)!
       db.prepare(`INSERT INTO module_settings (id, enabled, sort_order, updated_at)
-        VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET sort_order=excluded.sort_order, updated_at=excluded.updated_at`)
+        VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET sort_order=excluded.sort_order`)
         .run(id, old.enabled?1:0,idx,now)
     })
   })()

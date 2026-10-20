@@ -1,0 +1,32 @@
+import { test,expect } from '@playwright/test'
+import { enableAccounts,loginAccount,accountOrigin } from './helpers/accounts'
+test.beforeEach(async({request})=>enableAccounts(request))
+test('binding status is self-only, filtered, and keeps mutations at WordPress',async({playwright})=>{
+  const guest=await playwright.request.newContext({baseURL:accountOrigin})
+  expect((await guest.get('/api/account/bindings')).status()).toBe(401)
+  const {me}=await loginAccount(guest)
+  const response=await guest.get('/api/account/bindings'),data=await response.json()
+  expect(response.status()).toBe(200);expect(response.headers()['cache-control']).toContain('no-store')
+  expect(data.providers[0].linked).toBeTruthy();expect(JSON.stringify(data)).not.toContain('MUST_NOT_LEAK')
+  expect(new URL(data.managementUrl).searchParams.get('expect_uid')).toBe(me.user.hubUid)
+  expect((await guest.get('/api/account/bindings?user_id=999')).status()).toBe(400)
+  expect((await guest.post('/api/account/bindings')).status()).toBe(405)
+  await guest.dispose()
+})
+test('binding page shows current status and safe authoritative management link',async({page})=>{
+  const {me}=await loginAccount(page.request)
+  await page.goto('/account/bindings')
+  await expect(page.getByRole('heading',{name:'账号绑定与恢复',exact:true})).toBeVisible()
+  await expect(page.getByRole('link',{name:'前往博客验证并管理绑定'})).toHaveAttribute('href',new RegExp('expect_uid='+me.user.hubUid))
+  await expect(page.getByText('应用未配置',{exact:true})).toBeVisible()
+  await page.setViewportSize({width:390,height:844})
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy()
+  await page.screenshot({path:'test-results/bindings-mobile.png',fullPage:true})
+})
+test('untrusted binding destination is refused instead of redirected',async({playwright,request})=>{
+  const user=await playwright.request.newContext({baseURL:accountOrigin});await loginAccount(user)
+  await request.post('http://127.0.0.1:1031/__fixture/control',{data:{mode:'wrong-binding-origin'}})
+  const response=await user.get('/api/account/bindings')
+  expect(response.status()).toBe(503);expect(await response.text()).not.toContain('evil.invalid')
+  await user.dispose()
+})

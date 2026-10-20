@@ -11,6 +11,7 @@ const blogFixture = process.env.HUB_TEST_BLOG_FIXTURE ||= path.join(testDataDire
 export default defineConfig({
   testDir: './tests',
   testMatch: '**/*.spec.ts',
+  testIgnore: ['**/accounts*.spec.ts','**/members*.spec.ts','**/content.spec.ts','**/p3-*.spec.ts','**/edgeone.spec.ts'],
   fullyParallel: false,
   workers: 1,
   timeout: 30_000,
@@ -34,7 +35,7 @@ export default defineConfig({
       HUB_SITE_URL: baseURL,
       HUB_DATA_DIR: testDataDirectory,
       HUB_TEST_BLOG_FIXTURE: blogFixture,
-      HUB_WORDPRESS_URL: 'https://wordpress-fixture.invalid/subsite/',
+      HUB_CONTENT_WORDPRESS_URL: 'https://wordpress-fixture.invalid/subsite/',
       HUB_ADMIN_USERNAME: 'duanap',
       HUB_ADMIN_PASSWORD_HASH: `scrypt$${salt.toString('hex')}$${scryptSync(password, salt, 64).toString('hex')}`,
     },

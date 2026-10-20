@@ -6,6 +6,7 @@ import { LiveClock, LocalAudio, ThemeOrb } from './PublicWidgets'
 import { getPublicAlbums, getPublicNotes } from '@/lib/public-content'
 import { DEFAULT_HOME_WIDGETS } from '@/lib/home-config'
 import type { HomeWidgetId } from '@/lib/types'
+import { QQLoginLink } from '@/components/QQLoginLink'
 
 export function HomeBoard() {
   const site = getSiteSettings()
@@ -15,9 +16,9 @@ export function HomeBoard() {
   const images = showPhotos ? getPublicAlbums().flatMap(album => album.images.map(image => image.url)).slice(0, 12) : []
   const latest = showNotes && site.homeShowUpdates ? getPublicNotes()[0] : undefined
   const tiles: Record<HomeWidgetId, ReactElement<{ style?: CSSProperties; 'data-widget'?: string }>> = {
-    intro: <section className="hub-tile hub-intro" aria-label="个人介绍">
+    intro: <section className="hub-tile hub-intro hero" aria-label="个人介绍">
       <div className="hub-intro-copy"><h1>Hi, I’m <span>{site.displayName}</span>.</h1><p>{site.tagline}</p><p className="hub-intro-bio">{site.biography.replace(/[#*`>\[\]]/g, '').slice(0, 230)}</p>
-        <div className="hub-intro-actions">{site.githubUrl && <a className="hub-round-link" href={site.githubUrl} target="_blank" rel="noopener noreferrer" aria-label="GitHub"><HubIcon name="code" /></a>}{site.publicEmail && <a className="hub-round-link" href={'mailto:' + site.publicEmail} aria-label="公开邮箱"><HubIcon name="mail" /></a>}{site.socialLinks.map((link, index) => <a className="hub-social-chip" href={link.url} key={index} target="_blank" rel="noopener noreferrer">{link.label}</a>)}{isEnabled('about') && <Link className="hub-pill-link" href="/about">About <HubIcon name="arrow" /></Link>}</div>
+        <div className="hub-intro-actions"><QQLoginLink />{site.githubUrl && <a className="hub-round-link" href={site.githubUrl} target="_blank" rel="noopener noreferrer" aria-label="GitHub"><HubIcon name="code" /></a>}{site.publicEmail && <a className="hub-round-link" href={'mailto:' + site.publicEmail} aria-label="公开邮箱"><HubIcon name="mail" /></a>}{site.socialLinks.map((link, index) => <a className="hub-social-chip" href={link.url} key={index} target="_blank" rel="noopener noreferrer">{link.label}</a>)}{isEnabled('about') && <Link className="hub-pill-link" href="/about">About <HubIcon name="arrow" /></Link>}</div>
       </div>{site.avatarUrl ? <img className="hub-intro-avatar" src={site.avatarUrl} alt={site.displayName + '头像'} /> : <div className="hub-robot" role="img" aria-label="正在散步的小机器人" />}
     </section>,
     clock: <section className="hub-tile hub-clock-tile"><LiveClock /></section>,
