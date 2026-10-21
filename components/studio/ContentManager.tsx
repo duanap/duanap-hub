@@ -6,7 +6,7 @@ import { MediaPicker } from './MediaPicker'
 import { MarkdownEditor } from './MarkdownEditor'
 
 type Item = Album | PersonalNote | FriendLink
-const labels = { albums: '相册', notes: '随记', links: '友链' }
+const labels = { albums: '相册', notes: '文案', links: '友链' }
 const blank = () => ({ title: '', summary: '', coverUrl: '', images: [] as AlbumImage[], body: '', imageUrl: '', publishedAt: '', url: '', groupName: '', iconUrl: '', published: false, sortOrder: 0 })
 type Draft = ReturnType<typeof blank>
 function editable(item?: Item): Draft {
@@ -92,6 +92,26 @@ export function ContentManager({ kind, busy: parentBusy, onDirtyChange, onBusyCh
     if (draft.images.some(image => image.url === newImage.trim())) { setError('同一相册不能重复添加图片'); return }
     field('images', [...draft.images, { url: newImage.trim(), caption: '' }]); setNewImage(''); setError('')
   }
+  async function uploadPhotos(files: File[]) {
+    if (locked || inFlight.current || !files.length) return
+    if (draft.images.length + files.length > 48) { setError('每个相册最多48张照片'); return }
+    inFlight.current = true; setBusy(true); onBusyChange(true); setError('')
+    const added: AlbumImage[] = []
+    try {
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) throw new Error(file.name + ' 超过5 MiB')
+        const form = new FormData(); form.set('file', file)
+        const response = await fetch('/api/studio/media', { method: 'POST', body: form })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || '照片上传失败')
+        added.push({ url: data.media.url, caption: '' })
+      }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '照片上传失败') }
+    finally {
+      if (added.length) field('images', [...draft.images, ...added])
+      inFlight.current = false; setBusy(false); onBusyChange(false)
+    }
+  }
   function moveImage(index: number, direction: -1 | 1) {
     const images = [...draft.images], next = index + direction
     if (next < 0 || next >= images.length) return
@@ -104,16 +124,16 @@ export function ContentManager({ kind, busy: parentBusy, onDirtyChange, onBusyCh
     {!open ? <section className="studio-card"><div className="card-heading"><div><h2>{label}管理</h2><p>独立保存、排序和发布，草稿仅管理员可见。</p></div><button type="button" className="action-primary" disabled={locked} onClick={() => edit()}>+ 新增{label}</button></div>
       <div className="content-filters"><input aria-label={'搜索' + label} placeholder={'搜索' + label + '标题'} value={search} disabled={locked} onChange={event => setSearch(event.target.value)} /><select aria-label={label + '发布筛选'} value={filter} disabled={locked} onChange={event => setFilter(event.target.value)}><option value="all">全部状态</option><option value="published">已发布 / 已排期</option><option value="draft">草稿</option></select></div>
       <div className="studio-content-list">{visible.map(item => <button type="button" className="studio-content-card" key={item.id} aria-label={'编辑' + label + '：' + item.title} disabled={locked} onClick={() => edit(item)}>
-        <strong>{item.title}</strong><small>{!item.published ? '草稿' : 'publishedAt' in item && item.publishedAt > new Date().toISOString() ? '已排期' : '已发布'} · 排序 {item.sortOrder}</small><span>{'images' in item ? `${item.images.length} 张图片` : 'url' in item ? item.groupName || item.url : item.body.replace(/[#*`]/g, '').slice(0, 90)}</span>
+        <strong>{item.title || ('body' in item ? item.body.slice(0, 40) : '')}</strong><small>{!item.published ? '草稿' : 'publishedAt' in item && item.publishedAt > new Date().toISOString() ? '已排期' : '已发布'} · 排序 {item.sortOrder}</small><span>{'images' in item ? `${item.images.length} 张照片` : 'url' in item ? item.groupName || item.url : item.body.replace(/[#*`]/g, '').slice(0, 90)}</span>
       </button>)}</div>{!visible.length && <div className="studio-empty">{busy ? '读取中…' : '没有符合条件的' + label + '。'}</div>}
     </section> : <section className="studio-card"><div className="card-heading"><div><h2>{activeId ? '编辑' : '新增'}{label}</h2><p>保存后公开页面会读取最新内容。</p></div><button type="button" className="action-secondary" disabled={locked} onClick={close}>返回{label}列表</button></div>
       <fieldset className="studio-fieldset" disabled={locked}><div className="form-columns">
-        <label className="field"><span>{label}标题</span><input value={draft.title} maxLength={120} onChange={event => field('title', event.target.value)} /></label>
+        <label className="field"><span>{label}标题{kind === 'notes' ? '（可不填）' : ''}</span><input value={draft.title} maxLength={120} placeholder={kind === 'notes' ? '一句话也可以，不必写标题' : ''} onChange={event => field('title', event.target.value)} /></label>
         <label className="field"><span>{label}排序</span><input type="number" min={-1000000} max={1000000} value={draft.sortOrder} onChange={event => field('sortOrder', Number(event.target.value))} /></label>
         <label className="check-choice"><input type="checkbox" checked={draft.published} onChange={event => field('published', event.target.checked)} />公开发布{label}</label>
         {kind !== 'notes' && <label className="field span-two"><span>{label}简介</span><textarea value={draft.summary} maxLength={500} rows={3} onChange={event => field('summary', event.target.value)} /></label>}
-        {kind === 'albums' && <><MediaPicker label="相册封面" value={draft.coverUrl} onChange={value => field('coverUrl', value)} onBusyChange={onMediaBusyChange} /><div className="field"><span>相册图片</span><p className="form-hint">最多 48 张，可填写说明并调整先后顺序；封面也会作为图片展示。</p></div></>}
-        {kind === 'notes' && <><label className="field"><span>随记发布时间</span><input type="datetime-local" value={localDate(draft.publishedAt)} onChange={event => { const value = event.target.value; if (!value) field('publishedAt', ''); else if (!Number.isNaN(new Date(value).getTime())) field('publishedAt', new Date(value).toISOString()) }} /><small>使用本机时区；留空立即发布，未来时间将定时公开。</small></label><MediaPicker label="随记配图" value={draft.imageUrl} onChange={value => field('imageUrl', value)} onBusyChange={onMediaBusyChange} /><MarkdownEditor key={'note-' + activeId} name="随记正文" label="随记正文（Markdown）" value={draft.body} onChange={value => field('body', value)} disabled={locked} /></>}
+        {kind === 'albums' && <><MediaPicker label="相册封面" value={draft.coverUrl} onChange={value => field('coverUrl', value)} onBusyChange={onMediaBusyChange} /><div className="field"><span>相册照片</span><p className="form-hint">最多48张，可批量上传、填写说明并调整顺序；封面单独设置，留空使用首张照片。</p><label className="action-secondary media-upload">批量上传照片<input type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif" aria-label="批量上传相册照片" onChange={event => { const files = Array.from(event.target.files || []); event.target.value = ''; void uploadPhotos(files) }} /></label></div></>}
+        {kind === 'notes' && <><label className="field"><span>文案发布时间</span><input type="datetime-local" value={localDate(draft.publishedAt)} onChange={event => { const value = event.target.value; if (!value) field('publishedAt', ''); else if (!Number.isNaN(new Date(value).getTime())) field('publishedAt', new Date(value).toISOString()) }} /><small>留空立即发布，也可以设为未来时间。</small></label><MediaPicker label="文案配图" value={draft.imageUrl} onChange={value => field('imageUrl', value)} onBusyChange={onMediaBusyChange} /><MarkdownEditor key={'note-' + activeId} name="文案正文" label="文案正文（Markdown）" value={draft.body} onChange={value => field('body', value)} disabled={locked} /></>}
         {kind === 'links' && <><label className="field"><span>友链地址</span><input type="url" value={draft.url} placeholder="https://…" maxLength={500} onChange={event => field('url', event.target.value)} /></label><label className="field"><span>友链分组</span><input value={draft.groupName} maxLength={60} placeholder="朋友 / 设计 / 开发" onChange={event => field('groupName', event.target.value)} /></label><MediaPicker label="友链图标" value={draft.iconUrl} onChange={value => field('iconUrl', value)} onBusyChange={onMediaBusyChange} /></>}
       </div>
       {kind === 'albums' && <div className="studio-album-images">{draft.images.map((image, index) => <div className="studio-album-row" key={image.url}>

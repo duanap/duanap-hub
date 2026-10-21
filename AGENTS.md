@@ -1,5 +1,15 @@
 # duanap Hub · Codex 开发约束
 
+## 当前产品方向（2026-10-21 用户调整，优先于下文旧阶段需求）
+
+本项目先独立复刻 https://zyyo.net/ 的页面布局与交互，再提供后台管理。以 `docs/REPLICA-SCOPE.md` 为本轮验收基准；下文及旧 P1/P2/P3 文档只作为历史资料，不得为了兼容旧需求改变复刻页面。
+
+- 首页展示内容、标签、图标、图片来源、歌曲库由后台配置，不从旧项目自动推导。
+- Notes 是后台自行添加的朋友圈文案；允许无标题，不合并项目公告或更新。
+- Photos 是后台独立管理的相册和照片；不读取作品封面或截图。
+- Links 是自行添加的友链，不自动混入项目和社交账号。
+- 现有生产数据与服务仍须保护；本地调整先独立验收，生产替换需针对新版本确认。
+
 优先阅读 `docs/ROADMAP-V1.1.md`、`docs/ARCHITECTURE.md`、`docs/REQUIREMENTS-V1.0.md`、`docs/ACCEPTANCE.md`。本仓库是**独立新项目**，与 `duanap/duanap-index`、`duanap/index`、WordPress 生产站隔离。
 
 ## 当前开发优先级
