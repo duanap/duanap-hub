@@ -8,7 +8,7 @@
     "start": "next start -H 127.0.0.1 -p 1026",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
-    "test:replica": "playwright test tests/replica.spec.ts tests/content-management.spec.ts tests/security.spec.ts tests/admin-login.spec.ts tests/backups.spec.ts",
+    "test:replica": "playwright test tests/replica.spec.ts tests/content-management.spec.ts tests/notes-links-audio.spec.ts tests/site-preview.spec.ts tests/security.spec.ts tests/admin-login.spec.ts tests/backups.spec.ts",
     "test:backup": "node --test tests/backup-format.test.mjs",
     "test:env": "node --test tests/admin-env.test.mjs",
     "check:structural": "node scripts/verify.mjs"

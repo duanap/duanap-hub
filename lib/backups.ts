@@ -5,6 +5,7 @@ import Database from 'better-sqlite3'
 import { getDatabase } from '@/lib/db'
 import { DATA_DIR, withDataLock, ensureDataDirectory } from '@/lib/storage'
 import { encodeBackup, mediaName } from '@/scripts/backup-format.mjs'
+import { mediaLimit } from '@/scripts/media-policy.mjs'
 
 const directory = path.join(DATA_DIR, 'backups')
 export const validBackupName = (name: string) => /^backup-[a-f0-9-]{36}\.hub\.gz$/.test(name)
@@ -43,7 +44,7 @@ export async function createBackup(): Promise<BackupItem> {
           const location = path.join(mediaFolder, name), stat = await lstat(location)
           if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('媒体文件无效')
           total += stat.size
-          if (stat.size > 5 * 1024 * 1024 || total > 80 * 1024 * 1024) throw new Error('备份内容过大')
+          if (stat.size > mediaLimit(name) || total > 80 * 1024 * 1024) throw new Error('备份内容过大，请使用离线磁盘备份')
           media.push({ name, data: await readFile(location) })
         }
       } catch (cause) { if ((cause as NodeJS.ErrnoException).code !== 'ENOENT') throw cause }

@@ -1,3 +1,4 @@
+import { testOrigin } from './helpers/origin'
 import { expect, test, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
 import sharp from 'sharp'
@@ -5,7 +6,7 @@ import Database from 'better-sqlite3'
 import { gunzipSync } from 'node:zlib'
 import type { ContentKind } from '@/lib/types'
 
-const headers = { Origin: 'http://127.0.0.1:1027' }
+const headers = { Origin: testOrigin }
 let records: { kind: ContentKind; id: number }[] = []
 let media: string[] = []
 const marker = () => randomBytes(5).toString('hex')

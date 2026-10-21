@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Markdown } from '@/components/Markdown'
 import type { getPublicAlbums, getPublicLinks, getPublicNotes } from '@/lib/public-content'
 import { HubIcon } from './HubIcon'
@@ -31,35 +31,11 @@ export function AlbumGallery({ albums }: { albums: ReturnType<typeof getPublicAl
   </>
 }
 
-export function NotesFeed({ notes }: { notes: ReturnType<typeof getPublicNotes> }) {
-  const [query, setQuery] = useState('')
-  const [order, setOrder] = useState<string[] | null>(null)
-  const [expanded, setExpanded] = useState<string[]>([])
-  const [page, setPage] = useState(0)
-  useEffect(() => {
-    const id = window.location.hash.slice(1), index = notes.findIndex(note => note.id === id)
-    if (index >= 0) setPage(Math.floor(index / 18))
-  }, [notes])
-  useEffect(() => {
-    if (window.location.hash) { const target = document.getElementById(window.location.hash.slice(1)); target?.scrollIntoView() }
-  }, [page])
-  const ordered = order ? [...notes].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)) : notes
-  const filtered = ordered.filter(note => `${note.title} ${note.body} ${note.author}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
-  const visible = filtered.slice(page * 18, (page + 1) * 18)
-  function randomize() {
-    const ids = notes.map(note => note.id)
-    for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]] }
-    setOrder(ids); setPage(0)
-  }
-  return <>
-    <div className="hub-content-toolbar"><div className="hub-segmented"><button type="button" aria-pressed={!order} onClick={() => { setOrder(null); setPage(0) }}>按时间</button><button type="button" aria-pressed={!!order} onClick={randomize}>随机看看</button></div><label className="hub-search"><HubIcon name="search" /><input type="search" aria-label="搜索文案" placeholder="Search notes…" value={query} onChange={event => { setQuery(event.target.value); setPage(0) }} /></label></div>
-    {visible.length ? <div className="hub-notes-columns">{visible.map(note => <article className="hub-card hub-note" key={note.id} id={note.id} data-note-id={note.id}>
-      {note.imageUrl && <img className="hub-note-image" src={note.imageUrl} alt={note.title ? note.title + '配图' : '文案配图'} loading="lazy" />}{note.title && <h2>{note.title}</h2>}<div className={'markdown hub-note-body' + (!expanded.includes(note.id) ? ' hub-note-clamped' : '')}><Markdown>{note.body}</Markdown></div>
-      {note.body.length > 140 && <button className="hub-expand" type="button" aria-expanded={expanded.includes(note.id)} onClick={() => setExpanded(expanded.includes(note.id) ? expanded.filter(id => id !== note.id) : [...expanded, note.id])}>{expanded.includes(note.id) ? '收起' : '展开'}</button>}
-      <div className="hub-note-footer"><time dateTime={note.date}>{note.date.slice(5, 10)}</time><Link href={note.href}>{note.author}</Link></div>
-    </article>)}</div> : <div className="hub-empty" role="status">没有找到匹配的文案。</div>}
-    {filtered.length > 18 && <nav className="hub-pagination" aria-label="文案分页"><button type="button" disabled={page === 0} onClick={() => setPage(page - 1)}>← 上一页</button><span>{page + 1} / {Math.ceil(filtered.length / 18)}</span><button type="button" disabled={(page + 1) * 18 >= filtered.length} onClick={() => setPage(page + 1)}>下一页 →</button></nav>}
-  </>
+export { NotesFeed } from './NotesFeed'
+
+function LinkIcon({ title, url }: { title: string; url: string }) {
+  const [failed, setFailed] = useState(false)
+  return <span className="hub-link-initial" aria-hidden="true">{url && !failed ? <img src={url} alt="" loading="lazy" onError={() => setFailed(true)} /> : title.slice(0, 1)}</span>
 }
 
 export function LinksDirectory({ links }: { links: ReturnType<typeof getPublicLinks> }) {
@@ -70,7 +46,7 @@ export function LinksDirectory({ links }: { links: ReturnType<typeof getPublicLi
   return <>
     <div className="hub-content-toolbar"><div className="hub-segmented">{groups.map(name => <button type="button" key={name} aria-pressed={name === group} onClick={() => setGroup(name)}>{name}</button>)}</div><label className="hub-search"><HubIcon name="search" /><input type="search" aria-label="搜索公开链接" placeholder="Search links…" value={query} onChange={event => setQuery(event.target.value)} /></label></div>
     <div className="hub-links-grid">{filtered.map((link, index) => {
-      const content = <><span className="hub-link-initial" aria-hidden="true">{link.iconUrl ? <img src={link.iconUrl} alt="" loading="lazy" /> : link.title.slice(0, 1)}</span><span className="hub-link-copy"><strong>{link.title}</strong><small>{link.summary || link.group}</small></span><HubIcon name="arrow" /></>
+      const content = <><LinkIcon key={link.iconUrl} title={link.title} url={link.iconUrl} /><span className="hub-link-copy"><strong>{link.title}</strong><small>{link.summary || link.group}</small></span><HubIcon name="arrow" /></>
       return link.url.startsWith('/') ? <Link href={link.url} className="hub-card hub-directory-link" key={index}>{content}</Link> : <a href={link.url} className="hub-card hub-directory-link" key={index} target="_blank" rel="noopener noreferrer">{content}</a>
     })}</div>
     {!filtered.length && <div className="hub-empty" role="status">没有找到匹配的链接。</div>}
