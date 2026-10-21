@@ -5,11 +5,12 @@ import path from 'node:path'
 import sharp from 'sharp'
 import { DATA_DIR, ensureDataDirectory, withDataLock } from '@/lib/storage'
 import { getDatabase } from '@/lib/db'
+import { audioExtension, mediaName, mediaMime, MAX_AUDIO_BYTES, MAX_IMAGE_BYTES } from '@/scripts/media-policy.mjs'
 
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+export { MAX_IMAGE_BYTES, MAX_AUDIO_BYTES }
 const MIME = 'image/webp'
 const folder = path.join(DATA_DIR, 'media')
-export const validMediaName = (name: string) => /^[a-f0-9-]{36}\.webp$/.test(name)
+export const validMediaName = (name: string) => mediaName(name)
 export type MediaItem = { name: string; url: string; size: number; mime: string; createdAt: string }
 
 async function ensureFolder() {
@@ -24,7 +25,7 @@ export async function listMedia(): Promise<MediaItem[]> {
   for (const name of files.filter(validMediaName)) {
     try {
       const stat = await lstat(path.join(folder, name))
-      if (stat.isFile() && !stat.isSymbolicLink()) media.push({ name, url: '/media/' + name, size: stat.size, mime: MIME, createdAt: stat.birthtime.toISOString() })
+      if (stat.isFile() && !stat.isSymbolicLink()) media.push({ name, url: '/media/' + name, size: stat.size, mime: mediaMime(name), createdAt: stat.birthtime.toISOString() })
     } catch { /* A concurrent unused-file deletion may remove an item. */ }
   }
   return media.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -58,6 +59,29 @@ export async function readMedia(name: string) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw error
   }
+}
+export async function uploadAudio(file: File): Promise<MediaItem> {
+  if (!file.size || file.size > MAX_AUDIO_BYTES) throw new Error('音频不能超过20 MiB')
+  const source = Buffer.from(await file.arrayBuffer()), extension = audioExtension(source)
+  return withDataLock(async () => {
+    await ensureFolder()
+    const name = randomUUID() + '.' + extension
+    await writeFile(path.join(folder, name), source, { flag: 'wx', mode: 0o600 })
+    return { name, url: '/media/' + name, size: source.length, mime: mediaMime(name), createdAt: new Date().toISOString() }
+  })
+}
+export async function openMedia(name: string) {
+  if (!validMediaName(name)) return null
+  await ensureFolder()
+  try {
+    const location = path.join(folder, name), entry = await lstat(location)
+    if (!entry.isFile() || entry.isSymbolicLink()) return null
+    const handle = await open(location, constants.O_RDONLY | (constants.O_NOFOLLOW || 0))
+    let stat
+    try { stat = await handle.stat() } catch (cause) { await handle.close(); throw cause }
+    if (!stat.isFile() || !stat.size) { await handle.close(); return null }
+    return { handle, size: stat.size, mime: mediaMime(name) }
+  } catch (cause) { if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return null; throw cause }
 }
 export async function deleteMedia(name: string) {
   if (!validMediaName(name)) throw new Error('媒体标识无效')

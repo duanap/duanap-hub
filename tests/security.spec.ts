@@ -1,3 +1,4 @@
+import { testOrigin } from './helpers/origin'
 import { expect, test } from '@playwright/test'
 import { readLimitedBody } from '@/lib/request-body'
 test('body limit cancels an oversized stream before fully buffering it', async () => {
@@ -11,7 +12,7 @@ test('body limit cancels an oversized stream before fully buffering it', async (
   expect(cancelled).toBeTruthy(); expect(pulled).toBeLessThan(5)
 })
 test('administrator endpoints reject forged origins and oversized JSON', async ({ page }) => {
-  const headers = { Origin: 'http://127.0.0.1:1027' }
+  const headers = { Origin: testOrigin }
   const anonymous = await page.request.post('/api/studio/projects', { headers, data: { slug: 'private', title: 'private' } })
   expect(anonymous.status()).toBe(401)
   await page.request.post('/api/studio/login', { headers, data: { username: 'duanap', password: process.env.HUB_TEST_ADMIN_PASSWORD } })
@@ -23,7 +24,7 @@ test('administrator endpoints reject forged origins and oversized JSON', async (
 })
 
 test('server account gate stays closed even if Studio module is enabled',async({request})=>{
-  const headers={Origin:'http://127.0.0.1:1027'}
+  const headers={Origin:testOrigin}
   await request.post('/api/studio/login',{headers,data:{username:'duanap',password:process.env.HUB_TEST_ADMIN_PASSWORD}})
   expect((await request.patch('/api/studio/modules',{headers,data:{id:'accounts',enabled:true}})).status()).toBe(200)
   try{

@@ -1,3 +1,4 @@
+import { testOrigin } from './helpers/origin'
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
 import sharp from 'sharp'
@@ -8,7 +9,7 @@ import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import type { ContentKind, HubSettings } from '@/lib/types'
 
-const headers = { Origin: 'http://127.0.0.1:1027' }
+const headers = { Origin: testOrigin }
 let original: HubSettings
 let records: { kind: ContentKind; id: number }[]
 let projects: number[]

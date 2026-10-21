@@ -64,27 +64,39 @@ export function ContentManager({ kind, busy: parentBusy, onDirtyChange, onBusyCh
     setDraft(next); setSaved(next); setActiveId(item?.id ?? null); setOpen(true); setNewImage(''); setNotice(''); setError('')
   }
   function close() { if (mayLeave()) { setOpen(false); setNewImage(''); setDraft(blank()); setSaved(blank()) } }
-  function payload() {
-    const common = { title: draft.title, published: draft.published, sortOrder: draft.sortOrder }
+  function payload(publishNow = false) {
+    const common = { title: draft.title, published: publishNow || draft.published, sortOrder: draft.sortOrder }
     if (kind === 'albums') return { ...common, summary: draft.summary, coverUrl: draft.coverUrl, images: newImage.trim() ? [...draft.images, { url: newImage.trim(), caption: '' }] : draft.images }
-    if (kind === 'notes') return { ...common, body: draft.body, imageUrl: draft.imageUrl, publishedAt: draft.publishedAt }
+    if (kind === 'notes') return { ...common, body: draft.body, imageUrl: draft.imageUrl, publishedAt: publishNow ? '' : draft.publishedAt }
     return { ...common, url: draft.url, summary: draft.summary, groupName: draft.groupName, iconUrl: draft.iconUrl }
   }
-  async function write(method: 'POST' | 'PATCH' | 'DELETE') {
+  async function write(method: 'POST' | 'PATCH' | 'DELETE', publishNow = false) {
     if (locked || inFlight.current) return
     if (method === 'DELETE' && (!activeId || !window.confirm('删除“' + draft.title + '”？删除后无法撤销，图片文件仍保留在媒体库。'))) return
     inFlight.current = true; setBusy(true); onBusyChange(true); setError(''); setNotice('')
     try {
       const response = await fetch('/api/studio/content/' + kind + (method === 'POST' ? '' : '/' + activeId), {
-        method, headers: { 'Content-Type': 'application/json' }, body: method === 'DELETE' ? undefined : JSON.stringify(payload()),
+        method, headers: { 'Content-Type': 'application/json' }, body: method === 'DELETE' ? undefined : JSON.stringify(payload(publishNow)),
       })
       const data = await response.json()
       if (response.status === 401) { window.location.assign('/duanap/login'); return }
       if (!response.ok) throw new Error(data.error || '保存失败')
       setItems(data.items); setNewImage('')
       if (method === 'DELETE') { setOpen(false); setDraft(blank()); setSaved(blank()); setActiveId(null); setNotice(label + '已删除') }
-      else { const next = editable(data.item); setDraft(next); setSaved(next); setActiveId(data.item.id); setNotice(label + '已保存') }
+      else { const next = editable(data.item); setDraft(next); setSaved(next); setActiveId(data.item.id); setNotice(label + '已保存' + (kind === 'notes' ? !next.published ? '为草稿，尚未公开' : next.publishedAt > new Date().toISOString() ? '，已安排定时发布' : '并公开发布' : '')) }
     } catch (cause) { setError(cause instanceof Error ? cause.message : '保存失败') }
+    finally { inFlight.current = false; setBusy(false); onBusyChange(false) }
+  }
+  async function getWebsiteInfo() {
+    if (locked || inFlight.current || !draft.url.trim()) return
+    inFlight.current = true; setBusy(true); onBusyChange(true); setError(''); setNotice('')
+    try {
+      const response = await fetch('/api/studio/link-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: draft.url.trim() }) })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || '网站信息获取失败，可以手动填写')
+      setDraft(previous => ({ ...previous, title: data.title || previous.title, iconUrl: data.iconUrl || previous.iconUrl, url: data.url }))
+      setNotice('网站信息已填入，保存友链后生效')
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '网站信息获取失败，可以手动填写') }
     finally { inFlight.current = false; setBusy(false); onBusyChange(false) }
   }
   function addImage() {
@@ -118,10 +130,13 @@ export function ContentManager({ kind, busy: parentBusy, onDirtyChange, onBusyCh
     ;[images[index], images[next]] = [images[next], images[index]]
     field('images', images)
   }
-  const visible = items.filter(item => item.title.toLocaleLowerCase().includes(search.toLocaleLowerCase()) && (filter === 'all' || item.published === (filter === 'published')))
+  const visible = items.filter(item => `${item.title} ${'body' in item ? item.body : ''}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()) && (filter === 'all' || item.published === (filter === 'published')))
+  const existingGroups = [...new Set(items.flatMap(item => 'groupName' in item ? [item.groupName || '朋友'] : []))].sort((a,b) => a.localeCompare(b,'zh-CN'))
+  const drafts = items.filter(item => !item.published).length
+  const scheduled = items.filter(item => item.published && 'publishedAt' in item && item.publishedAt > new Date().toISOString()).length
   return <div className="studio-content-manager">
     {error && <div className="error-banner" role="alert">{error}</div>}{notice && <div className="success-banner" role="status">{notice}</div>}
-    {!open ? <section className="studio-card"><div className="card-heading"><div><h2>{label}管理</h2><p>独立保存、排序和发布，草稿仅管理员可见。</p></div><button type="button" className="action-primary" disabled={locked} onClick={() => edit()}>+ 新增{label}</button></div>
+    {!open ? <section className="studio-card"><div className="card-heading"><div><h2>{label}管理</h2><p>{items.length} 条 · {items.length - drafts - scheduled} 条公开 · {drafts} 条草稿{kind === 'notes' ? ` · ${scheduled} 条排期` : ''}</p><p>独立保存、排序和发布，草稿仅管理员可见。</p></div><button type="button" className="action-primary" disabled={locked} onClick={() => edit()}>+ 新增{label}</button></div>
       <div className="content-filters"><input aria-label={'搜索' + label} placeholder={'搜索' + label + '标题'} value={search} disabled={locked} onChange={event => setSearch(event.target.value)} /><select aria-label={label + '发布筛选'} value={filter} disabled={locked} onChange={event => setFilter(event.target.value)}><option value="all">全部状态</option><option value="published">已发布 / 已排期</option><option value="draft">草稿</option></select></div>
       <div className="studio-content-list">{visible.map(item => <button type="button" className="studio-content-card" key={item.id} aria-label={'编辑' + label + '：' + item.title} disabled={locked} onClick={() => edit(item)}>
         <strong>{item.title || ('body' in item ? item.body.slice(0, 40) : '')}</strong><small>{!item.published ? '草稿' : 'publishedAt' in item && item.publishedAt > new Date().toISOString() ? '已排期' : '已发布'} · 排序 {item.sortOrder}</small><span>{'images' in item ? `${item.images.length} 张照片` : 'url' in item ? item.groupName || item.url : item.body.replace(/[#*`]/g, '').slice(0, 90)}</span>
@@ -134,13 +149,14 @@ export function ContentManager({ kind, busy: parentBusy, onDirtyChange, onBusyCh
         {kind !== 'notes' && <label className="field span-two"><span>{label}简介</span><textarea value={draft.summary} maxLength={500} rows={3} onChange={event => field('summary', event.target.value)} /></label>}
         {kind === 'albums' && <><MediaPicker label="相册封面" value={draft.coverUrl} onChange={value => field('coverUrl', value)} onBusyChange={onMediaBusyChange} /><div className="field"><span>相册照片</span><p className="form-hint">最多48张，可批量上传、填写说明并调整顺序；封面单独设置，留空使用首张照片。</p><label className="action-secondary media-upload">批量上传照片<input type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif" aria-label="批量上传相册照片" onChange={event => { const files = Array.from(event.target.files || []); event.target.value = ''; void uploadPhotos(files) }} /></label></div></>}
         {kind === 'notes' && <><label className="field"><span>文案发布时间</span><input type="datetime-local" value={localDate(draft.publishedAt)} onChange={event => { const value = event.target.value; if (!value) field('publishedAt', ''); else if (!Number.isNaN(new Date(value).getTime())) field('publishedAt', new Date(value).toISOString()) }} /><small>留空立即发布，也可以设为未来时间。</small></label><MediaPicker label="文案配图" value={draft.imageUrl} onChange={value => field('imageUrl', value)} onBusyChange={onMediaBusyChange} /><MarkdownEditor key={'note-' + activeId} name="文案正文" label="文案正文（Markdown）" value={draft.body} onChange={value => field('body', value)} disabled={locked} /></>}
-        {kind === 'links' && <><label className="field"><span>友链地址</span><input type="url" value={draft.url} placeholder="https://…" maxLength={500} onChange={event => field('url', event.target.value)} /></label><label className="field"><span>友链分组</span><input value={draft.groupName} maxLength={60} placeholder="朋友 / 设计 / 开发" onChange={event => field('groupName', event.target.value)} /></label><MediaPicker label="友链图标" value={draft.iconUrl} onChange={value => field('iconUrl', value)} onBusyChange={onMediaBusyChange} /></>}
+        {kind === 'links' && <><div className="field"><label htmlFor="friend-url">友链地址</label><input id="friend-url" type="url" value={draft.url} placeholder="https://…" maxLength={500} onChange={event => field('url', event.target.value)} /><button type="button" className="action-secondary" disabled={locked || !draft.url.trim()} onClick={() => void getWebsiteInfo()}>获取网站名称和图标</button></div><div className="field"><label htmlFor="friend-group-existing">已有友链分类</label><select id="friend-group-existing" disabled={!existingGroups.length} value={existingGroups.includes(draft.groupName) ? draft.groupName : ''} onChange={event => { if (event.target.value) field('groupName', event.target.value) }}><option value="">{existingGroups.length ? '选择已有分类' : '暂无分类，可在下方新建'}</option>{existingGroups.map(group => <option key={group} value={group}>{group}</option>)}</select><label htmlFor="friend-group">友链分组</label><input id="friend-group" value={draft.groupName} maxLength={60} placeholder="选择已有分类，或输入新分类" onChange={event => field('groupName', event.target.value)} /></div><MediaPicker label="友链图标" value={draft.iconUrl} onChange={value => field('iconUrl', value)} onBusyChange={onMediaBusyChange} /></>}
       </div>
       {kind === 'albums' && <div className="studio-album-images">{draft.images.map((image, index) => <div className="studio-album-row" key={image.url}>
         <img src={image.url} alt={'相册图片 ' + (index + 1)} /><label className="field"><span>图片说明 {index + 1}</span><input value={image.caption} maxLength={300} onChange={event => field('images', draft.images.map((item, itemIndex) => itemIndex === index ? { ...item, caption: event.target.value } : item))} /></label>
         <div className="studio-album-actions"><button type="button" className="mini-arrow" aria-label={'上移图片 ' + (index + 1)} disabled={index === 0 || locked} onClick={() => moveImage(index, -1)}>↑</button><button type="button" className="mini-arrow" aria-label={'下移图片 ' + (index + 1)} disabled={index === draft.images.length - 1 || locked} onClick={() => moveImage(index, 1)}>↓</button><button type="button" className="text-action destructive" aria-label={'移除图片 ' + (index + 1)} onClick={() => field('images', draft.images.filter((_, itemIndex) => itemIndex !== index))}>移除</button></div>
       </div>)}<div className="studio-new-image"><MediaPicker label="新增相册图片" value={newImage} onChange={setNewImage} onBusyChange={onMediaBusyChange} /><button type="button" className="action-secondary" disabled={locked || !newImage.trim() || draft.images.length >= 48} onClick={addImage}>添加图片到相册</button></div></div>}
-      <div className="studio-form-bottom"><span className="draft-indicator">{dirty ? '有未保存的修改' : ''}</span><div className="form-actions">{activeId && <button type="button" className="text-action destructive" onClick={() => void write('DELETE')}>删除{label}</button>}<button type="button" className="action-primary" onClick={() => void write(activeId ? 'PATCH' : 'POST')}>{busy ? '保存中…' : '保存' + label}</button></div></div>
+      {kind === 'notes' && <p className="form-hint">{!draft.published ? '本次保存为草稿，不会在公开页面显示；也可以点击“立即发布”。' : draft.publishedAt > new Date().toISOString() ? '已选择未来发布时间，保存后到时才会公开。' : '本次保存后会在 Notes 公开显示。'}</p>}
+      <div className="studio-form-bottom"><span className="draft-indicator">{dirty ? '有未保存的修改' : ''}</span><div className="form-actions">{activeId && <button type="button" className="text-action destructive" onClick={() => void write('DELETE')}>删除{label}</button>}{kind === 'notes' && !draft.published && <button type="button" className="action-secondary" onClick={() => void write(activeId ? 'PATCH' : 'POST', true)}>立即发布</button>}<button type="button" className="action-primary" onClick={() => void write(activeId ? 'PATCH' : 'POST')}>{busy ? '保存中…' : '保存' + label}</button></div></div>
       </fieldset>
     </section>}
   </div>

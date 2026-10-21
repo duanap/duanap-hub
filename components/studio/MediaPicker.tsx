@@ -17,7 +17,7 @@ export function MediaPicker({ label, value, onChange, onBusyChange }: { label: s
       const response = await fetch('/api/studio/media', { cache: 'no-store' })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || '媒体库读取失败')
-      if (active.current) { setItems(data.media); setOpen(true) }
+      if (active.current) { setItems(data.media.filter((item: MediaItem) => item.mime.startsWith('image/'))); setOpen(true) }
     } catch (cause) { if (active.current) setError(cause instanceof Error ? cause.message : '读取失败') }
   }
   async function upload(file?: File) {

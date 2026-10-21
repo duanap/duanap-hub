@@ -90,6 +90,9 @@ export function publicHttpUrl(value: string) {
 export function publicImageUrl(value: string) {
   return !value || (value.length <= 500 && (publicHttpUrl(value) || /^\/media\/[a-f0-9-]{36}\.webp$/.test(value)))
 }
+export function publicAudioUrl(value: string) {
+  return publicHttpUrl(value) || /^\/media\/[a-f0-9-]{36}\.(mp3|m4a|ogg|wav|flac)$/.test(value)
+}
 
 export function validateSettingsPatch(value: unknown): Partial<HubSettings> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('无效的网站设置')
@@ -115,7 +118,7 @@ export function validateSettingsPatch(value: unknown): Partial<HubSettings> {
       patch[key] = raw.map(item => ({ id: item.id, enabled: item.enabled, width: item.width })); continue
     }
     if (key === 'musicPlaylist') {
-      if (!Array.isArray(raw) || raw.length > 200 || raw.some(item => !item || typeof item !== 'object' || Object.keys(item).some(key => !['title', 'artist', 'url', 'coverUrl', 'enabled'].includes(key)) || typeof item.title !== 'string' || !item.title.trim() || item.title.length > 120 || typeof item.artist !== 'string' || item.artist.length > 120 || typeof item.url !== 'string' || item.url.length > 1000 || !publicHttpUrl(item.url) || typeof item.coverUrl !== 'string' || !publicImageUrl(item.coverUrl) || (item.enabled !== undefined && typeof item.enabled !== 'boolean'))) throw new Error('歌曲库最多200首，每首须填写名称和 HTTP(S) 音频直链，封面须为有效图片地址')
+      if (!Array.isArray(raw) || raw.length > 200 || raw.some(item => !item || typeof item !== 'object' || Object.keys(item).some(key => !['title', 'artist', 'url', 'coverUrl', 'enabled'].includes(key)) || typeof item.title !== 'string' || !item.title.trim() || item.title.length > 120 || typeof item.artist !== 'string' || item.artist.length > 120 || typeof item.url !== 'string' || item.url.length > 1000 || !publicAudioUrl(item.url) || typeof item.coverUrl !== 'string' || !publicImageUrl(item.coverUrl) || (item.enabled !== undefined && typeof item.enabled !== 'boolean'))) throw new Error('歌曲库最多200首，每首须填写名称和本站音频或 HTTP(S) 音频直链，封面须为有效图片地址')
       patch[key] = raw.map(item => ({ title: item.title.trim(), artist: item.artist.trim(), url: item.url, coverUrl: item.coverUrl, enabled: item.enabled !== false })); continue
     }
     if (key === 'homeProjectsLimit') {

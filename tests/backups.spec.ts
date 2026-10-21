@@ -1,10 +1,11 @@
+import { testOrigin } from './helpers/origin'
 import { expect, test } from '@playwright/test'
 import Database from 'better-sqlite3'
 import { gunzipSync } from 'node:zlib'
 
 test('protected backup creates a consistent downloadable snapshot without sessions', async ({ page }) => {
   expect((await page.request.get('/api/studio/backups')).status()).toBe(401)
-  const headers = { Origin: 'http://127.0.0.1:1027' }
+  const headers = { Origin: testOrigin }
   expect((await page.request.post('/api/studio/login', { headers, data: { username: 'duanap', password: process.env.HUB_TEST_ADMIN_PASSWORD } })).ok()).toBeTruthy()
   const backup = await page.request.post('/api/studio/backups', { headers })
   expect(backup.status()).toBe(201)
