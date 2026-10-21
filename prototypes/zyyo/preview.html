@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zyyo · 响应式布局预览</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;background:#171717;color:#ddd;font:13px system-ui}header{min-height:56px;display:flex;align-items:center;gap:8px;padding:10px 16px;position:sticky;top:0;background:#171717;z-index:2;border-bottom:1px solid #333;flex-wrap:wrap}button,a,select{border:1px solid #444;border-radius:7px;background:#171717;color:inherit;text-decoration:none;padding:7px 10px;cursor:pointer}button[aria-pressed=true]{background:#333;color:#fff}header span{margin-right:auto}#stage{overflow:hidden;margin:16px auto;position:relative}iframe{border:0;position:absolute;top:0;left:0;transform-origin:top left;background:#0b0b0b} @media(max-width:560px){header span{display:none}header{padding:8px;gap:5px}button,a,select{font-size:11px;padding:7px}}
+</style>
+<header><span>HTML 布局复刻</span><select aria-label="选择页面"><option value="index.html">Home</option><option value="blog.html">Blog</option><option value="photos.html">Photos</option><option value="notes.html">Notes</option><option value="links.html">Links</option><option value="about.html">About</option><option value="tags.html">Tags</option><option value="article-typecho-to-astro.html">Article</option></select><button data-width="1440" data-height="900" aria-pressed="true">桌面 1440</button><button data-width="1280" data-height="800" aria-pressed="false">笔记本</button><button data-width="390" data-height="844" aria-pressed="false">手机</button><a id="open-original" href="./index.html" target="_blank">原尺寸 ↗</a></header>
+<div id="stage"><iframe src="./index.html" title="首页布局预览" width="1440" height="900"></iframe></div>
+<script>
+  const frame=document.querySelector('iframe'),stage=document.getElementById('stage');let width=1440,height=900;
+  function fit(){const scale=Math.min(1,(innerWidth-24)/width);frame.width=width;frame.height=height;frame.style.transform=`scale(${scale})`;stage.style.width=width*scale+'px';stage.style.height=height*scale+'px';}
+  document.querySelectorAll('button').forEach(button=>button.onclick=()=>{width=Number(button.dataset.width);height=Number(button.dataset.height);document.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));fit();});
+  const page=document.querySelector('select'),original=document.getElementById('open-original');
+  page.onchange=()=>{frame.src='./'+page.value;original.href=frame.src;};
+  frame.addEventListener('load',()=>{try{const name=new URL(frame.contentWindow.location.href).pathname.split('/').pop();original.href=frame.contentWindow.location.href;if([...page.options].some(option=>option.value===name))page.value=name;}catch{}});
+  addEventListener('resize',fit);fit();
+</script>
+</html>

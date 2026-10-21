@@ -68,6 +68,9 @@ export async function deleteMedia(name: string) {
       ...db.prepare('SELECT * FROM site_settings').all(),
       ...db.prepare('SELECT * FROM projects').all(),
       ...db.prepare('SELECT * FROM project_entries').all(),
+      ...db.prepare('SELECT * FROM albums').all(),
+      ...db.prepare('SELECT * FROM notes').all(),
+      ...db.prepare('SELECT * FROM friend_links').all(),
     ]
     if (content.some(row => JSON.stringify(row).includes(url))) return false
     await ensureFolder()

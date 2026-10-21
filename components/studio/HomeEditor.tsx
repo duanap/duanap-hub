@@ -1,0 +1,21 @@
+'use client'
+
+import { DEFAULT_HOME_WIDGETS, HOME_WIDGETS } from '@/lib/home-config'
+import type { HubSettings } from '@/lib/types'
+
+export function HomeEditor({ settings, field }: { settings: HubSettings; field: <K extends keyof HubSettings>(key: K, value: HubSettings[K]) => void }) {
+  function move(index: number, direction: number) {
+    const values = [...settings.homeWidgets], next = index + direction
+    if (next < 0 || next >= values.length) return
+    ;[values[index], values[next]] = [values[next], values[index]]
+    field('homeWidgets', values)
+  }
+  return <>
+    <section className="home-section"><div className="card-heading"><div><h3>首页卡片</h3><p>默认使用复刻布局；改变顺序、宽度或启停后自动流式排布。仅修改文案会保留原布局。</p></div><button type="button" className="action-secondary" onClick={() => field('homeWidgets', DEFAULT_HOME_WIDGETS.map(value => ({ ...value })))}>恢复默认卡片</button></div><div className="home-widget-list">{settings.homeWidgets.map((widget, index) => {
+      const label = HOME_WIDGETS.find(value => value.id === widget.id)!.label
+      return <div className="home-widget-row" key={widget.id}><label className="check-choice"><input type="checkbox" checked={widget.enabled} onChange={event => field('homeWidgets', settings.homeWidgets.map(value => value.id === widget.id ? { ...value, enabled: event.target.checked } : value))} />{label}</label><select aria-label={label + '宽度'} value={widget.width} onChange={event => field('homeWidgets', settings.homeWidgets.map(value => value.id === widget.id ? { ...value, width: event.target.value as typeof widget.width } : value))}><option value="auto">默认宽度</option><option value="small">窄</option><option value="wide">宽</option><option value="full">整行</option></select><button type="button" className="mini-arrow" disabled={index === 0} onClick={() => move(index, -1)} aria-label={'上移卡片 ' + label}>↑</button><button type="button" className="mini-arrow" disabled={index === settings.homeWidgets.length - 1} onClick={() => move(index, 1)} aria-label={'下移卡片 ' + label}>↓</button></div>
+    })}</div></section>
+    <section className="home-section"><h3>卡片文字</h3><div className="form-columns"><label className="field"><span>一句话卡片（留空使用个人介绍）</span><textarea maxLength={300} value={settings.homeQuote} onChange={event => field('homeQuote', event.target.value)} /></label><label className="field"><span>终端文字（留空使用默认命令）</span><textarea rows={4} maxLength={1000} value={settings.homeConsole} onChange={event => field('homeConsole', event.target.value)} /></label><label className="field"><span>最近记录文字（留空显示最新动态）</span><input maxLength={200} value={settings.homeReadingText} onChange={event => field('homeReadingText', event.target.value)} /></label><label className="field"><span>最近记录链接</span><input value={settings.homeReadingUrl} onChange={event => field('homeReadingUrl', event.target.value)} placeholder="/notes 或 https://…" /></label></div></section>
+    <section className="home-section"><h3>音乐歌单</h3><p className="form-hint">填写可公开播放的音频直链，最多24首。访客手动播放；封面也可选择本地音乐。</p><div className="home-playlist">{settings.musicPlaylist.map((track, index) => <div className="home-track" key={index}><div className="form-columns">{([['歌曲名称', 'title'], ['作者', 'artist'], ['音频直链', 'url'], ['封面图片地址', 'coverUrl']] as const).map(([label, key]) => <label className="field" key={key}><span>{label} {index + 1}</span><input value={track[key]} onChange={event => field('musicPlaylist', settings.musicPlaylist.map((value, idx) => idx === index ? { ...value, [key]: event.target.value } : value))} /></label>)}</div><div className="form-actions"><button type="button" className="text-action" disabled={index === 0} onClick={() => { const values = [...settings.musicPlaylist]; [values[index - 1], values[index]] = [values[index], values[index - 1]]; field('musicPlaylist', values) }}>上移歌曲 {index + 1}</button><button type="button" className="text-action destructive" onClick={() => field('musicPlaylist', settings.musicPlaylist.filter((_, idx) => idx !== index))}>移除歌曲 {index + 1}</button></div></div>)}</div><button type="button" className="action-secondary" disabled={settings.musicPlaylist.length >= 24} onClick={() => field('musicPlaylist', [...settings.musicPlaylist, { title: '', artist: '', url: '', coverUrl: '' }])}>添加歌曲</button></section>
+  </>
+}

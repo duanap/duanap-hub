@@ -3,7 +3,7 @@ test('home arrangement, module isolation and SEO remain consistent without integ
   const headers = { Origin: 'http://127.0.0.1:1027' }
   expect((await page.request.post('/api/studio/login', { headers, data: { username: 'duanap', password: process.env.HUB_TEST_ADMIN_PASSWORD } })).ok()).toBeTruthy()
   expect((await page.request.put('/api/studio/site', { headers, data: { displayName: '中文测试', homeProjectsLimit: 3, homeShowUpdates: false, homeLayout: 'compact', socialLinks: [{ label: '我的社交', url: 'https://example.com/profile' }] } })).ok()).toBeTruthy()
-  const order = ['tools', 'games', 'projects', 'about', 'content', 'accounts', 'edgeone', 'github']
+  const order = ['tools', 'games', 'projects', 'about', 'blog', 'photos', 'notes', 'links', 'content', 'accounts', 'edgeone', 'github']
   expect((await page.request.patch('/api/studio/modules', { headers, data: { order } })).ok()).toBeTruthy()
   await page.goto('/')
   await expect(page.getByRole('link', { name: '我的社交' })).toBeVisible()
@@ -12,10 +12,10 @@ test('home arrangement, module isolation and SEO remain consistent without integ
   const og = await page.request.get('/og-image')
   expect(og.status()).toBe(200)
   expect(og.headers()['content-type']).toContain('image/png')
-  for (const id of ['about', 'projects', 'games', 'tools']) expect((await page.request.patch('/api/studio/modules', { headers, data: { id, enabled: false } })).ok()).toBeTruthy()
+  for (const id of ['about', 'projects', 'games', 'tools', 'blog', 'photos', 'notes', 'links']) expect((await page.request.patch('/api/studio/modules', { headers, data: { id, enabled: false } })).ok()).toBeTruthy()
   const home = await page.request.get('/')
   expect(home.status()).toBe(200)
-  for (const url of ['/about', '/projects', '/games', '/tools', '/tools/password']) expect((await page.request.get(url)).status()).toBe(404)
+  for (const url of ['/about', '/projects', '/games', '/tools', '/tools/password', '/blog', '/photos', '/notes', '/links']) expect((await page.request.get(url)).status()).toBe(404)
   const sitemap = await (await page.request.get('/sitemap.xml')).text()
   expect(sitemap).not.toContain('/projects'); expect(sitemap).not.toContain('/tools')
   expect(await (await page.request.get('/feed.xml')).text()).not.toContain('<item>')
@@ -27,7 +27,7 @@ test('home arrangement, module isolation and SEO remain consistent without integ
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/)
   await page.goto('/duanap')
   await expect(page.getByRole('heading', { name: '概览', exact: true })).toBeVisible()
-  for (const id of ['about', 'projects', 'games', 'tools']) await page.request.patch('/api/studio/modules', { headers, data: { id, enabled: true } })
+  for (const id of ['about', 'projects', 'games', 'tools', 'blog', 'photos', 'notes', 'links']) await page.request.patch('/api/studio/modules', { headers, data: { id, enabled: true } })
   await page.request.put('/api/studio/site', { headers, data: { displayName: 'duanap', seoIndexable: true, homeShowUpdates: true, homeLayout: 'cards', socialLinks: [] } })
 })
 

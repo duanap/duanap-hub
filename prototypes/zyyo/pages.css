@@ -1,0 +1,21 @@
+[hidden] { display: none !important; }
+header nav a[aria-current=page] { background: var(--hover-fill); color: var(--hover-text); }
+.replica-empty { padding: 32px 20px; text-align: center; color: #888; font-size: 14px; }
+.replica-album-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin: 12px 0 28px; }
+.replica-album-heading h1 { font-family: 'Noto Serif SC', Georgia, serif; font-size: 26px; }
+.replica-album-heading span { color: #888; font-size: 12px; margin-left: auto; }
+.replica-back { border-radius: 999px; padding: 8px 16px; font-size: 13px; cursor: pointer; }
+.replica-photo-grid { columns: 3; column-gap: 16px; }
+.replica-photo-grid button { width: 100%; display: block; margin-bottom: 16px; border-radius: 8px; overflow: hidden; cursor: zoom-in; break-inside: avoid; }
+.replica-photo-grid img { width: 100%; height: auto; transition: transform .3s; }
+.replica-photo-grid button:hover img { transform: scale(1.025); }
+.replica-lightbox { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; border: 0; padding: 40px 64px; background: #090909f5; color: #fff; }
+.replica-lightbox::backdrop { background: #090909; }
+.replica-lightbox[open] { display: grid; place-items: center; }
+.replica-lightbox img { max-width: 100%; max-height: calc(100dvh - 100px); object-fit: contain; }
+.replica-lightbox button { position: fixed; display: grid; place-items: center; background: #ffffff12; border-radius: 50%; width: 40px; height: 40px; font: 28px system-ui; cursor: pointer; }
+.photo-close { top: 20px; right: 20px; }.photo-prev { top: 50%; left: 16px; }.photo-next { top: 50%; right: 16px; }
+.photo-counter { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); font: 12px system-ui; color: #aaa; }
+.replica-copy { position: absolute; right: 10px; top: 8px; border: 1px solid var(--card-border); background: var(--card-bg); color: inherit; border-radius: 5px; padding: 4px 8px; font: 11px system-ui; cursor: pointer; }
+.replica-toc-active { color: #60a5fa !important; border-left-color: #60a5fa !important; }
+@media(max-width:660px) { .replica-photo-grid { columns: 2; column-gap: 10px; }.replica-photo-grid button { margin-bottom: 10px; }.replica-lightbox { padding: 52px 12px; }.replica-lightbox .photo-prev,.replica-lightbox .photo-next { top: auto; bottom: 12px; }.replica-album-heading span { width: 100%; margin: 0; } }

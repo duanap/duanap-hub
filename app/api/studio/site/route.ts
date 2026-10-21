@@ -7,6 +7,6 @@ import { withDataLock } from '@/lib/storage'
 export const runtime='nodejs'
 export async function PUT(request:Request){
   const deny=await guardAdminMutation(request);if(deny)return deny
-  try{const payload = validateSettingsPatch(await parseJson(request,50_000));return await withDataLock(async () => NextResponse.json({settings:updateSiteSettings(payload)}))}
+  try{const payload = validateSettingsPatch(await parseJson(request,100_000));return await withDataLock(async () => NextResponse.json({settings:updateSiteSettings(payload)}))}
   catch(e){return apiError(e)}
 }

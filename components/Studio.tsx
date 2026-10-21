@@ -2,22 +2,25 @@
 
 import type {EdgeoneSettings,EdgeoneSnapshot} from '@/lib/edgeone-types'
 import {edgeoneNumber,edgeoneBytes,edgeoneHitRate} from '@/lib/edgeone-types'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { HubSettings, ModuleState, Project, ProjectEntry } from '@/lib/types'
 import { ProjectWorkspace, blankEntry, blankProject, editableProject, type EntryDraft, type ProjectDraft } from './studio/ProjectWorkspace'
 import { MediaPicker } from './studio/MediaPicker'
 import { MediaPanel } from './studio/MediaPanel'
 import { BackupPanel } from './studio/BackupPanel'
 import { ThemeControl } from '@/components/ThemeControl'
+import { ContentManager } from './studio/ContentManager'
+import { HomeEditor } from './studio/HomeEditor'
+import { BlogPanel } from './studio/BlogPanel'
 import type { ContentSettings,ContentSnapshot } from '@/lib/content-types'
 import type {GithubSettings,GithubSnapshot} from '@/lib/github-types'
 import type {ToolSettings} from '@/lib/tools'
 
-type Tab = 'overview' | 'projects' | 'site' | 'home' | 'content' | 'tools' | 'github' | 'edgeone' | 'seo' | 'modules' | 'system'
-const nav: [Tab, string][] = [['overview', '概览'], ['projects', '项目与公告'], ['site', '主页资料'], ['home', '首页编排'], ['content','博客动态'], ['tools','工具配置'],['github','GitHub 动态'],['edgeone','EdgeOne 数据'],['seo', 'SEO 与备案'], ['modules', '模块管理'], ['system', '系统信息']]
+type Tab = 'albums' | 'notes' | 'links' | 'overview' | 'projects' | 'site' | 'home' | 'content' | 'tools' | 'github' | 'edgeone' | 'seo' | 'modules' | 'system'
+const nav: [Tab, string][] = [['overview', '概览'], ['projects', '项目与公告'], ['albums','相册管理'], ['notes','个人随记'], ['links','友链管理'], ['site', '主页资料'], ['home', '首页编排'], ['content','博客动态'], ['tools','工具配置'],['github','GitHub 动态'],['edgeone','EdgeOne 数据'],['seo', 'SEO 与备案'], ['modules', '模块管理'], ['system', '系统信息']]
 const groups: { label: string; tabs: Tab[] }[] = [
   { label: '工作台', tabs: ['overview'] },
-  { label: '内容管理', tabs: ['projects', 'content', 'tools','github','edgeone','site', 'home', 'modules'] },
+  { label: '内容管理', tabs: ['projects', 'albums', 'notes', 'links', 'content', 'tools','github','edgeone','site', 'home', 'modules'] },
   { label: '站点管理', tabs: ['seo', 'system'] },
 ]
 
@@ -43,7 +46,7 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
   const [savedSettings, setSavedSettings] = useState(initialSettings)
   const [modules, setModules] = useState(initialModules)
   const [contentSettings,setContentSettings]=useState(initialContentSettings),[savedContentSettings,setSavedContentSettings]=useState(initialContentSettings),[contentData,setContentData]=useState(initialContentSnapshot)
-  const contentDirty=JSON.stringify(contentSettings)!==JSON.stringify(savedContentSettings)
+  const blogSettingsDirty=JSON.stringify(contentSettings)!==JSON.stringify(savedContentSettings)
   const [toolSettings,setToolSettings]=useState(initialTools),[savedTools,setSavedTools]=useState(initialTools)
   const [githubSettings,setGithubSettings]=useState(initialGithubSettings),[savedGithub,setSavedGithub]=useState(initialGithubSettings),[githubData,setGithubData]=useState(initialGithubSnapshot),[repoText,setRepoText]=useState(initialGithubSettings.repositories.join('\n'))
   const toolsDirty=JSON.stringify(toolSettings)!==JSON.stringify(savedTools),githubDirty=JSON.stringify(githubSettings)!==JSON.stringify(savedGithub)||repoText!==savedGithub.repositories.join('\n')
@@ -62,7 +65,11 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
   const busyRef = useRef(false)
   const mediaBusyRef = useRef(0)
   const [mediaBusy, setMediaBusy] = useState(0)
-  const locked = busy || mediaBusy > 0
+  const [localContentDirty, setLocalContentDirty] = useState(false)
+  const [contentBusy, setContentBusy] = useState(false)
+  const contentBusyRef = useRef(false)
+  const onContentBusyChange = useCallback((value: boolean) => { contentBusyRef.current = value; setContentBusy(value) }, [])
+  const locked = busy || mediaBusy > 0 || contentBusy
   function onMediaBusyChange(uploading: boolean) {
     mediaBusyRef.current = Math.max(0, mediaBusyRef.current + (uploading ? 1 : -1))
     setMediaBusy(mediaBusyRef.current)
@@ -84,7 +91,7 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
   const projectDirty = projectEditorOpen && JSON.stringify(draft) !== JSON.stringify(savedDraft)
   const entryDirty = projectEditorOpen && JSON.stringify(entryDraft) !== JSON.stringify(savedEntryDraft)
   const settingsDirty = JSON.stringify(settings) !== JSON.stringify(savedSettings)
-  const dirty = projectDirty || entryDirty || settingsDirty || contentDirty || toolsDirty || githubDirty || edgeDirty
+  const dirty = localContentDirty || projectDirty || entryDirty || settingsDirty || blogSettingsDirty || toolsDirty || githubDirty || edgeDirty
 
   useEffect(() => {
     if (!dirty && !locked) return
@@ -97,7 +104,7 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
   }, [dirty, locked])
 
   async function perform(action: () => Promise<void>, message = '已保存') {
-    if (busyRef.current || mediaBusyRef.current) return
+    if (busyRef.current || mediaBusyRef.current || contentBusyRef.current) return
     busyRef.current = true
     setBusy(true); setError(''); setNotice('')
     try { await action(); setNotice(message) }
@@ -105,7 +112,7 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
     finally { busyRef.current = false; setBusy(false) }
   }
   function confirmLeave(hasChanges = dirty) {
-    if (busyRef.current || mediaBusyRef.current) return false
+    if (busyRef.current || mediaBusyRef.current || contentBusyRef.current) return false
     return !hasChanges || window.confirm('有未保存的修改，离开会丢弃这些修改。继续吗？')
   }
   function resetEntry(entry?: ProjectEntry) {
@@ -122,7 +129,7 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
     setTab(next); setNotice(''); setError('')
   }
   function editProject(project?: Project) {
-    if (!confirmLeave(projectDirty || entryDirty || settingsDirty || contentDirty || toolsDirty || githubDirty || edgeDirty)) return
+    if (!confirmLeave(projectDirty || entryDirty || settingsDirty || blogSettingsDirty || toolsDirty || githubDirty || edgeDirty)) return
     const next = project ? editableProject(project) : { ...blankProject }
     setSettings(savedSettings);setContentSettings(savedContentSettings);setToolSettings(savedTools);setGithubSettings(savedGithub);setRepoText(savedGithub.repositories.join('\n'));setEdgeSettings(savedEdge); setTab('projects'); setProjectEditorOpen(true)
     setActiveProjectId(project?.id ?? null); setDraft(next); setSavedDraft(next); resetEntry()
@@ -239,11 +246,12 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
       onEditProject={editProject} onClose={() => { if (confirmLeave(projectDirty || entryDirty)) closeProject() }}
       onSaveProject={() => void saveProject()} onDeleteProject={() => void removeProject()}
       onEditEntry={editEntry} onSaveEntry={() => void saveEntry()} onDeleteEntry={entry => void removeEntry(entry)} />}
+    {(tab === 'albums' || tab === 'notes' || tab === 'links') && <ContentManager key={tab} kind={tab} busy={locked} onDirtyChange={setLocalContentDirty} onBusyChange={onContentBusyChange} onMediaBusyChange={onMediaBusyChange} />}
     {tab === 'site' && <fieldset className="studio-fieldset studio-grid-two" disabled={locked}>
       <section className="studio-card"><h2>基本资料</h2><div className="form-stack">{input('网站名称', 'siteName')}{input('昵称', 'displayName')}{input('一句话介绍', 'tagline')}
         <label className="field"><span>个人介绍（Markdown）</span><textarea rows={8} value={settings.biography} onChange={event => field('biography', event.target.value)} /></label>
       </div></section><section className="studio-card"><h2>社交与联系</h2><div className="form-stack">
-        {input('GitHub 地址', 'githubUrl')}{input('公开邮箱', 'publicEmail')}<MediaPicker label="头像图片地址" value={settings.avatarUrl} onChange={value => field('avatarUrl', value)} onBusyChange={onMediaBusyChange} />{input('版权署名', 'copyright')}
+        {input('GitHub 地址', 'githubUrl')}{input('博客地址', 'blogUrl')}<label className="check-choice"><input type="checkbox" checked={settings.blogSyncEnabled} onChange={event => field('blogSyncEnabled', event.target.checked)} />在博客页显示文章摘要</label>{input('公开邮箱', 'publicEmail')}<MediaPicker label="头像图片地址" value={settings.avatarUrl} onChange={value => field('avatarUrl', value)} onBusyChange={onMediaBusyChange} />{input('版权署名', 'copyright')}
         <div className="field"><span>其他社交入口</span>{settings.socialLinks.map((link, index) => <div className="social-editor" key={index}>
           <input aria-label={'社交名称 ' + (index + 1)} value={link.label} placeholder="QQ / 个人主页" onChange={event => field('socialLinks', settings.socialLinks.map((value, idx) => idx === index ? { ...value, label: event.target.value } : value))} />
           <input aria-label={'社交地址 ' + (index + 1)} value={link.url} placeholder="https://…" onChange={event => field('socialLinks', settings.socialLinks.map((value, idx) => idx === index ? { ...value, url: event.target.value } : value))} />
@@ -252,11 +260,13 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
       </div></section><div className="studio-form-bottom"><span className="draft-indicator">{settingsDirty ? '有未保存的修改' : ''}</span>
         <button type="button" className="action-primary" onClick={() => void saveSite()}>{busy ? '保存中…' : '保存站点资料'}</button></div>
     </fieldset>}
+    {tab === 'site' && <section className="studio-card"><BlogPanel disabled={locked || settingsDirty} onBusyChange={onContentBusyChange} /></section>}
     {tab === 'home' && <>
       <fieldset className="studio-fieldset" disabled={locked}><section className="studio-card"><div className="card-heading"><div><h2>首页编排</h2><p>模块顺序由模块管理控制，保存后访客立即看到新内容。</p></div><button type="button" className="action-secondary" onClick={() => setPreview(!preview)}>{preview ? '收起首页预览' : '显示首页预览'}</button></div>
         <div className="form-columns"><label className="field"><span>首页项目数量</span><input type="number" min={1} max={24} value={settings.homeProjectsLimit} onChange={event => field('homeProjectsLimit', Number(event.target.value))} /></label>
           <label className="field"><span>项目展示样式</span><select value={settings.homeLayout} onChange={event => field('homeLayout', event.target.value as HubSettings['homeLayout'])}><option value="cards">卡片</option><option value="compact">紧凑</option></select></label>
           <label className="check-choice"><input type="checkbox" checked={settings.homeShowUpdates} onChange={event => field('homeShowUpdates', event.target.checked)} />显示最近动态</label></div>
+        <HomeEditor settings={settings} field={field} />
         <section className="home-section"><h3>工具中心内容</h3><p>名称、帮助、独立 SEO 与启停在工具配置中维护。</p><button type="button" onClick={()=>changeTab('tools')}>前往工具配置</button></section>
         <div className="form-actions"><button type="button" className="action-secondary" onClick={() => changeTab('modules')}>调整模块顺序与启停</button><button type="button" className="action-primary" onClick={() => void saveSite()}>保存首页设置</button></div>
       </section></fieldset>
@@ -284,7 +294,7 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
       </div></section>
       <section className="studio-card"><h2>分类筛选</h2><p className="form-hint">不选择则展示全部分类。筛选同样作用于综合 RSS。</p><div className="content-choices">{contentData.categories.map(c=><label className="check-choice" key={c.id}><input type="checkbox" checked={contentSettings.categoryIds.includes(c.id)} onChange={e=>setContentSettings({...contentSettings,categoryIds:e.target.checked?[...contentSettings.categoryIds,c.id]:contentSettings.categoryIds.filter(id=>id!==c.id)})}/>{c.name}</label>)}</div></section>
       <section className="studio-card"><h2>精选文章</h2><p className="form-hint">最多精选 12 篇，按选择顺序置顶；仍遵循分类筛选。</p><div className="content-choices">{contentData.posts.map(p=><label className="check-choice" key={p.id}><input type="checkbox" checked={contentSettings.featuredIds.includes(p.id)} onChange={e=>setContentSettings({...contentSettings,featuredIds:e.target.checked?[...contentSettings.featuredIds,p.id]:contentSettings.featuredIds.filter(id=>id!==p.id)})}/>{p.title}</label>)}</div></section>
-      <div className="studio-form-bottom"><span className="draft-indicator">{contentDirty?'有未保存的修改':''}</span><button type="button" className="action-primary" onClick={()=>void perform(async()=>{const result=await api<{settings:ContentSettings}>('/api/studio/content','PUT',contentSettings);setContentSettings(result.settings);setSavedContentSettings(result.settings)},'博客展示设置已保存')}>保存博客展示</button></div>
+      <div className="studio-form-bottom"><span className="draft-indicator">{blogSettingsDirty?'有未保存的修改':''}</span><button type="button" className="action-primary" onClick={()=>void perform(async()=>{const result=await api<{settings:ContentSettings}>('/api/studio/content','PUT',contentSettings);setContentSettings(result.settings);setSavedContentSettings(result.settings)},'博客展示设置已保存')}>保存博客展示</button></div>
     </fieldset>}
     {tab==='tools'&&<fieldset className="studio-fieldset studio-grid-two" disabled={locked}>{toolSettings.map(tool=><section className="studio-card" key={tool.id}><h2>{tool.id==='password'?'密码生成器':tool.id==='convert'?'文档转换':'IP 查询'}</h2><div className="form-stack"><label className="check-choice"><input type="checkbox" checked={tool.enabled} onChange={e=>setToolSettings(p=>p.map(t=>t.id===tool.id?{...t,enabled:e.target.checked}:t))}/>开放此工具</label>{(['title','description','seoTitle','seoDescription','help'] as const).map(key=><label className="field" key={key}><span>{{title:'工具名称',description:'工具说明',seoTitle:'SEO 标题',seoDescription:'SEO 描述',help:'帮助说明'}[key]}</span>{key==='help'||key==='description'||key==='seoDescription'?<textarea rows={key==='help'?5:2} maxLength={key==='help'?3000:500} value={tool[key]} onChange={e=>setToolSettings(p=>p.map(t=>t.id===tool.id?{...t,[key]:e.target.value}:t))}/>:<input maxLength={120} value={tool[key]} onChange={e=>setToolSettings(p=>p.map(t=>t.id===tool.id?{...t,[key]:e.target.value}:t))}/>}</label>)}</div></section>)}<div className="studio-form-bottom"><span className="draft-indicator">{toolsDirty?'有未保存的修改':''}</span><button className="action-primary" type="button" onClick={()=>void perform(async()=>{const result=await api<{tools:ToolSettings[]}>('/api/studio/tools','PUT',toolSettings);setToolSettings(result.tools);setSavedTools(result.tools)},'工具配置已保存')}>保存工具配置</button></div></fieldset>}
     {tab==='github'&&<fieldset className="studio-fieldset studio-grid-two" disabled={locked}><section className="studio-card"><h2>公开仓库与展示</h2><div className="form-stack"><label className="field"><span>GitHub 区域标题</span><input maxLength={80} value={githubSettings.title} onChange={e=>setGithubSettings({...githubSettings,title:e.target.value})}/></label><label className="field"><span>GitHub 区域说明</span><textarea maxLength={300} value={githubSettings.description} onChange={e=>setGithubSettings({...githubSettings,description:e.target.value})}/></label><label className="field"><span>公开仓库（每行 owner/repo）</span><textarea aria-label="公开仓库（每行 owner/repo）" rows={5} value={repoText} onChange={e=>setRepoText(e.target.value)}/></label></div><p className="form-hint">最多 4 个公开仓库，不接受网址或访问令牌；不自动修改项目的正式版本。</p><button className="action-primary" type="button" onClick={()=>void perform(async()=>{const result=await api<{settings:GithubSettings}>('/api/studio/github','PUT',{...githubSettings,repositories:repoText.split(/\r?\n/).map(r=>r.trim()).filter(Boolean)});setGithubSettings(result.settings);setSavedGithub(result.settings);setRepoText(result.settings.repositories.join('\n'))},'GitHub 配置已保存')}>保存 GitHub 配置</button></section><section className="studio-card"><h2>同步状态</h2><p>来源：GitHub 公开 API</p><p>最近成功同步：{githubData.syncedAt?new Date(githubData.syncedAt).toLocaleString('zh-CN'):'尚未同步'}</p><p role="status">{githubData.error||({unconfigured:'未选择仓库',empty:'尚无缓存',ready:'缓存可用',stale:'缓存已过期',error:'同步暂不可用'}[githubData.status])}</p><label className="check-choice"><input type="checkbox" checked={modules.some(m=>m.id==='github'&&m.enabled)} onChange={()=>void toggleModule(modules.find(m=>m.id==='github')!)}/>启用 GitHub 动态</label><button type="button" disabled={githubDirty||!githubSettings.repositories.length||!modules.some(m=>m.id==='github'&&m.enabled)} onClick={()=>void perform(async()=>{const result=await api<{snapshot:GithubSnapshot}>('/api/studio/github','POST',{});setGithubData(result.snapshot);if(result.snapshot.error||!result.snapshot.syncedAt)throw Error(result.snapshot.error||'配置已变化，请重新同步')},'GitHub 数据已同步')}>立即同步 GitHub</button><p className="form-hint">按需缓存 30 分钟，失败后至少等待 5 分钟再自动尝试。手动刷新也消耗匿名接口额度，请避免频繁操作。</p></section></fieldset>}
@@ -316,7 +326,7 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
     {tab === 'system' && <div className="studio-grid-two"><section className="studio-card"><h2>当前开发状态</h2>
       <div className="placeholder-stack">主站内容与独立管理员后台</div><div className="placeholder-stack">数据：SQLite / WAL</div>
       <div className="placeholder-stack">账号、积分与游戏：后续阶段</div></section>
-      <section className="studio-card"><h2>发布与备份</h2><p>上线前还需补齐媒体管理、备份恢复与旧站迁移验收。</p>
+      <section className="studio-card"><h2>发布与备份</h2><p>支持媒体管理、在线备份及停机恢复。旧站导入单独执行，普通用户数据按独立备份流程保留。</p>
         <a className="subtle-link" href="/api/health" target="_blank" rel="noopener noreferrer">查看健康检查 ↗</a></section><MediaPanel /><BackupPanel /></div>}
   </main></div>
 }

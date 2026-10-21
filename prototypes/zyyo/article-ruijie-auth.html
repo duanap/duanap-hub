@@ -1,0 +1,472 @@
+<!-- Local layout study: https://zyyo.net/. Long-form copy uses local layout examples. -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Typecho 时代结束了：内容全部迁到 Astro 静态站，评论尚未迁移；旧主题 Zyang 与新项目都将开源。聊聊新主页的设计理念。">
+<title>锐捷校园网认证工具 · Zyyo · HTML 布局复刻</title>
+<link rel="icon" type="image/svg+xml" href="./assets/favicon.ico">
+<link rel="stylesheet" href="./styles.css">
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="./replica.css">
+<link rel="stylesheet" href="./pages.css">
+</head>
+<body data-page="article" class="flex min-h-screen flex-col bg-[#f7f8fa] font-sans text-slate-800 antialiased dark:bg-[#111111] dark:text-neutral-100">
+<div id="glow-layer" class="glow-layer" aria-hidden="true" data-astro-transition-persist="glow-layer">
+</div>
+<div id="nav-progress" class="nav-progress" aria-hidden="true" data-astro-transition-persist="nav-progress">
+</div>
+<style>astro-island,astro-slot,astro-static-slot{display:contents}</style>
+<header class="mx-auto w-full max-w-[60rem] px-5 lg:px-6 sticky top-0 z-50 flex items-center justify-between gap-3 py-5 pb-3.5 md:grid md:grid-cols-[1fr_auto_1fr]">
+<div aria-hidden="true" class="hidden md:block">
+</div>
+<div class="card relative flex h-11 items-center gap-2 rounded-full px-2">
+<a href="./index.html" aria-label="Home" class="grid size-6 place-items-center overflow-hidden rounded-full">
+<img src="./assets/favicon.ico" alt="" class="size-6 rounded-full object-cover"/>
+</a>
+<span aria-hidden="true" class="h-4 w-px bg-(--card-border) max-md:hidden">
+</span>
+<nav aria-label="Main navigation" class="relative hidden h-10 items-center md:flex">
+<span class="relative flex h-10 items-center gap-1.5">
+<span aria-hidden="true" class="absolute left-0 top-1 z-0 h-8 rounded-full bg-slate-100 dark:bg-neutral-700 ">
+</span>
+<a href="./blog.html" aria-current="true" class="relative z-10 rounded-full leading-none transition-colors duration-200 hover:bg-(--hover-fill) grid size-8 shrink-0 place-items-center active text-slate-900 dark:text-white" title="Blog" aria-label="Blog">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-[calc(17px*var(--home-scale))]">
+<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20">
+</path>
+<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z">
+</path>
+</svg>
+</a>
+<a href="./photos.html" class="relative z-10 rounded-full leading-none transition-colors duration-200 hover:bg-(--hover-fill) grid size-8 shrink-0 place-items-center text-slate-500 dark:text-neutral-400" title="Photos" aria-label="Photos">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-[calc(17px*var(--home-scale))]">
+<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z">
+</path>
+<circle cx="12" cy="13" r="3">
+</circle>
+</svg>
+</a>
+<a href="./notes.html" class="relative z-10 rounded-full leading-none transition-colors duration-200 hover:bg-(--hover-fill) grid size-8 shrink-0 place-items-center text-slate-500 dark:text-neutral-400" title="Notes" aria-label="Notes">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-[calc(17px*var(--home-scale))]">
+<path d="M12 20h9">
+</path>
+<path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z">
+</path>
+</svg>
+</a>
+<a href="./links.html" class="relative z-10 rounded-full leading-none transition-colors duration-200 hover:bg-(--hover-fill) grid size-8 shrink-0 place-items-center text-slate-500 dark:text-neutral-400" title="Links" aria-label="Links">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-[calc(17px*var(--home-scale))]">
+<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71">
+</path>
+<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71">
+</path>
+</svg>
+</a>
+<a href="./about.html" class="relative z-10 rounded-full leading-none transition-colors duration-200 hover:bg-(--hover-fill) grid size-8 shrink-0 place-items-center text-slate-500 dark:text-neutral-400" title="About" aria-label="About">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-[calc(17px*var(--home-scale))]">
+<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2">
+</path>
+<circle cx="12" cy="7" r="4">
+</circle>
+</svg>
+</a>
+</span>
+</nav>
+<span aria-hidden="true" class="h-4 w-px bg-(--card-border)">
+</span>
+<div class="relative">
+<button type="button" aria-label="Open music player" aria-expanded="false" title="Music player" class="grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-slate-500 transition-colors hover:bg-(--hover-fill) dark:text-neutral-400">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-[calc(17px*var(--home-scale))]">
+<path d="M3 7h8">
+</path>
+<path d="M3 12h8">
+</path>
+<path d="M3 17h5">
+</path>
+<path d="M19 16.5V6.5">
+</path>
+<circle cx="16" cy="16.5" r="3">
+</circle>
+</svg>
+</button>
+</div>
+</div>
+<div class="flex shrink-0 items-center gap-2 md:justify-self-end">
+<button type="button" aria-label="Open menu" aria-expanded="false" class="card card-btn grid size-10 place-items-center rounded-full text-slate-500 hover:bg-(--hover-fill) dark:text-neutral-300 md:hidden">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-4">
+<path d="M4 7h16M4 12h16M4 17h16">
+</path>
+</svg>
+</button>
+</div>
+</header>
+<div class="mx-auto w-full max-w-[57rem] px-5 lg:px-6">
+<a href="./blog.html" class="card mt-8 inline-flex items-center gap-1.5 rounded-full border border-(--card-border) px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:border-(--hover-border) hover:text-(--hover-text) dark:border-(--card-border) dark:text-neutral-300">← Back</a>
+<div class="mt-6 flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-12">
+<article class="min-w-0 flex-1">
+<header data-gate-hidden>
+<div class="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500 dark:text-neutral-400">
+<span class="flex items-center gap-1.5">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="size-4" aria-hidden="true">
+<rect x="3" y="5" width="18" height="16" rx="2">
+</rect>
+<path d="M8 3v4M16 3v4M3 10h18">
+</path>
+</svg>2025.10.29</span>
+<span class="flex items-center gap-1.5">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="size-4" aria-hidden="true">
+<circle cx="12" cy="12" r="9">
+</circle>
+<path d="M12 7v5l3 2">
+</path>
+</svg>6 min read</span>
+<span class="flex items-center gap-1.5">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="size-4" aria-hidden="true">
+<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z">
+</path>
+<path d="M7 7h.01">
+</path>
+</svg>
+<span key="建站">建站</span>
+<span key="Astro">
+<span class="mx-0.5">·</span>Astro</span>
+<span key="Typecho">
+<span class="mx-0.5">·</span>Typecho</span>
+<span key="开源">
+<span class="mx-0.5">·</span>开源</span>
+<span key="迁移">
+<span class="mx-0.5">·</span>迁移</span>
+</span>
+</div>
+<h1 class="mt-4 font-serif text-3xl font-bold leading-snug sm:text-4xl">锐捷校园网认证工具</h1>
+</header>
+<div class="prose prose-neutral mt-8 max-w-none dark:prose-invert prose-headings:font-serif prose-headings:scroll-mt-24 prose-a:text-blue-500 prose-a:no-underline prose-a:hover:underline">
+<p class="text-sm text-slate-500">本地排版示例 · 锐捷校园网认证工具</p>
+<p>这是文章详情页的布局预览。正文使用本地编写的示例内容，保留标题、元信息、阅读区域和侧边目录的排列，便于比较宽屏和手机上的实际效果。</p>
+<h2 id="section-1">开篇</h2>
+<p>一个页面通常从内容开始。先确定要表达的事情，再安排段落与图片的位置。文字多一点时，读者仍然应该能找到清晰的阅读顺序；文字少一点时，页面也不必被装饰填满。</p>
+<blockquote>
+<p>留出可以呼吸的空间，让阅读保持自然。</p>
+</blockquote>
+<h2 id="section-2">实现过程</h2>
+<p>这次先完成静态 HTML，把结构、字号、间距和不同屏幕的编排固定下来。确认视觉后，可以再将页面拆成项目已有的组件，并接入内容管理。</p>
+<ul>
+<li>导航和内容使用统一的页面宽度。</li>
+<li>列表与详情分别安排合适的信息密度。</li>
+<li>图片保持自身比例，较长内容自然向下延伸。</li>
+</ul>
+<pre>
+<code>// A small, standalone page
+const page = {
+  title: 'Layout preview',
+  theme: 'dark',
+  ready: true,
+};</code>
+</pre>
+<h2 id="section-3">一些细节</h2>
+<p>桌面侧栏提供章节入口，窄屏则让正文占满可用区域。引用、代码、表格和普通段落沿用同一套排版节奏。点击目录可以跳到对应章节，也可以通过返回按钮回到文章列表。</p>
+<table>
+<thead>
+<tr>
+<th>区域</th>
+<th>展示方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>列表</td>
+<td>标题、摘要、日期与标签</td>
+</tr>
+<tr>
+<td>正文</td>
+<td>段落、引用、代码与表格</td>
+</tr>
+<tr>
+<td>目录</td>
+<td>与章节对应的锚点导航</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-4">下一步</h2>
+<p>继续核对真实内容长度下的显示效果，包括很长的标题、连续的图片和多行标签。示例文字仅用于版式演示，可在后续替换为自己的文章。</p>
+<details class="card p-4">
+<summary>查看排版说明</summary>
+<p>这一段用于展示折叠内容的展开与收起。所有操作都在当前浏览器本地完成。</p>
+</details>
+</div>
+<footer class="mt-16" data-gate-hidden>
+<aside class="card p-6">
+<div class="flex flex-wrap items-center justify-between gap-3">
+<h2 class="font-mono text-xs uppercase tracking-widest text-slate-500 dark:text-neutral-400">About this article</h2>
+<span class="font-mono text-xs tabular-nums text-slate-500 dark:text-neutral-500">6 min read</span>
+</div>
+<div class="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+<span class="text-slate-500 dark:text-neutral-400">Published <span class="font-medium text-slate-700 dark:text-neutral-200">2025.10.29</span>
+</span>
+<span class="text-slate-500 dark:text-neutral-400">By <span class="font-medium text-slate-700 dark:text-neutral-200">Zyyo</span>
+</span>
+</div>
+</aside>
+<div class="mt-12 grid gap-x-8 gap-y-5 sm:grid-cols-2">
+<a href="./article-md-blocks-demo.html" class="group flex items-start gap-2.5 sm:justify-start">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 size-4 shrink-0 text-slate-300 transition-all group-hover:-translate-x-1 group-hover:text-(--hover-text) dark:text-neutral-600" aria-hidden="true">
+<path d="M19 12H5M12 19l-7-7 7-7">
+</path>
+</svg>
+<span>
+<span class="block font-mono text-[11px] uppercase tracking-widest text-slate-500 dark:text-neutral-500">Previous</span>
+<span class="mt-1 block font-medium leading-snug text-slate-700 transition-colors group-hover:text-(--hover-text) dark:text-neutral-300">Markdown 魔法块：34 种花式组件渲染全展示</span>
+</span>
+</a>
+<span>
+</span>
+</div>
+</footer>
+<div class="sticky bottom-4 z-30 mx-auto mt-10 mb-6 flex w-fit items-center gap-0.5 rounded-full border border-slate-200/60 bg-white/80 p-1 shadow-lg backdrop-blur-sm dark:border-neutral-700/60 dark:bg-neutral-900/80" style="animation:slide-up 0.3s ease-out">
+<style>
+        @keyframes slide-up {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      </style>
+<button aria-label="评论 0" class="group flex items-center gap-1 rounded-full px-3 py-1.5 transition-all duration-200 relative text-slate-600 hover:bg-sky-500/15 hover:text-sky-600 dark:text-neutral-300 dark:hover:text-sky-400 dark:hover:bg-sky-500/10">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-3.5 transition-transform group-hover:scale-110">
+<path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 8.5-8.5 8.38 8.38 0 0 1 8.5 8.5Z">
+</path>
+</svg>
+<span class="text-[11px] font-semibold tabular-nums">0</span>
+</button>
+<div class="h-3.5 w-px bg-slate-200/60 dark:bg-neutral-700/60">
+</div>
+<button aria-label="回到顶部" class="group flex items-center gap-1 rounded-full px-3 py-1.5 transition-all duration-200 text-slate-600 hover:bg-emerald-500/15 hover:text-emerald-600 dark:text-neutral-300 dark:hover:text-emerald-400 dark:hover:bg-emerald-500/10">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-3.5 transition-transform group-hover:-translate-y-0.5">
+<path d="m17 11-5-5-5 5">
+</path>
+<path d="m17 18-5-5-5 5">
+</path>
+</svg>
+<span class="text-[11px] font-semibold">TOP</span>
+</button>
+<div class="h-3.5 w-px bg-slate-200/60 dark:bg-neutral-700/60">
+</div>
+<button aria-label="分享" class="group flex items-center gap-1 rounded-full px-3 py-1.5 transition-all duration-200 text-slate-600 hover:bg-violet-500/15 hover:text-violet-600 dark:text-neutral-300 dark:hover:text-violet-400 dark:hover:bg-violet-500/10">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-3.5 transition-transform group-hover:rotate-12">
+<path d="m22 2-7 20-4-9-9-4Z">
+</path>
+<path d="M22 2 11 13">
+</path>
+</svg>
+<span class="text-[11px] font-semibold">分享</span>
+</button>
+</div>
+</article>
+<aside id="post-toc-aside" data-gate-hidden class="lg:w-64 lg:shrink-0 lg:self-stretch">
+<div class="lg:sticky lg:top-6">
+<nav aria-label="Table of contents">
+<p class="font-mono text-xs uppercase tracking-widest text-slate-500 dark:text-neutral-400">On this page</p>
+<ul class="mt-3 flex flex-col gap-1 border-l border-(--card-border)">
+<li>
+<a href="#section-1" class="-ml-px block border-l border-transparent py-1 pl-3 text-sm text-slate-500 dark:text-neutral-400">开篇</a>
+</li>
+<li>
+<a href="#section-2" class="-ml-px block border-l border-transparent py-1 pl-3 text-sm text-slate-500 dark:text-neutral-400">实现过程</a>
+</li>
+<li>
+<a href="#section-3" class="-ml-px block border-l border-transparent py-1 pl-3 text-sm text-slate-500 dark:text-neutral-400">一些细节</a>
+</li>
+<li>
+<a href="#section-4" class="-ml-px block border-l border-transparent py-1 pl-3 text-sm text-slate-500 dark:text-neutral-400">下一步</a>
+</li>
+</ul>
+</nav>
+</div>
+</aside>
+</div>
+</div>
+<footer class="mx-auto w-full max-w-[57rem] px-5 lg:px-6 mt-auto flex flex-wrap items-center justify-between gap-4 pb-12 pt-7 text-xs text-slate-500 dark:border-neutral-700 dark:text-neutral-400">
+<span>© <!-- -->2026<!-- --> <!-- -->Zyyo<!-- --> · <!-- -->Built with Astro</span>
+<a href="./rss.xml" aria-label="Subscribe to RSS" class="ml-auto text-slate-500 transition-colors hover:text-(--hover-text) dark:text-neutral-400">RSS</a>
+</footer>
+<div data-no-drag="true" aria-hidden="true" aria-label="Music player" style="--cp-accent:rgb(163,143,255);--cp-pill:rgba(124,92,196,0.10);--cp-pill-strong:rgba(124,92,196,0.18);--cp-glow:rgba(124,92,196,0.12)" class="fixed inset-0 z-[90] overflow-y-auto overscroll-contain transition-opacity duration-300 lg:overflow-hidden pointer-events-none opacity-0">
+<div class="absolute inset-0 bg-[linear-gradient(165deg,#1d1727_0%,#140f1f_45%,#0a0812_100%)]">
+<div class="absolute inset-0 bg-[radial-gradient(70%_60%_at_28%_18%,var(--cp-glow),transparent_70%)]">
+</div>
+</div>
+<div class="relative z-10 mx-auto flex min-h-full w-full max-w-[110rem] flex-col px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1.25rem+env(safe-area-inset-top))] md:px-10 md:pb-8 md:pt-5 lg:h-full">
+<div class="sticky top-[calc(1rem+env(safe-area-inset-top))] z-10 ml-auto mr-5 h-0 md:absolute md:right-10 md:top-[calc(1.25rem+env(safe-area-inset-top))] md:ml-0 md:mr-0 md:h-auto">
+<button type="button" aria-label="关闭播放器" title="关闭 (Esc)" class="grid size-10 place-items-center rounded-full border border-white/15 text-white/55 transition-colors hover:bg-white/10 hover:text-white">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-6">
+<path d="M6 6l12 12M18 6 6 18">
+</path>
+</svg>
+</button>
+</div>
+<div class="mt-2 grid min-h-0 flex-1 grid-cols-1 gap-10 lg:mt-0 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-x-12 xl:gap-x-16">
+<div class="mx-auto flex w-full max-w-[30rem] flex-col items-center justify-center py-8 lg:py-4">
+<div class="relative aspect-square w-[min(100%,17rem)] overflow-hidden rounded-2xl shadow-[0_48px_100px_-40px_rgba(0,0,0,0.85)] ring-1 ring-white/10 sm:w-[min(100%,19rem)] lg:w-[min(100%,21rem)] xl:w-[min(100%,23rem)]">
+<div class="grid h-full w-full place-items-center text-white/25">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-14">
+<path d="M9 18V5l12-2v13">
+</path>
+<circle cx="6" cy="18" r="3">
+</circle>
+<circle cx="18" cy="16" r="3">
+</circle>
+</svg>
+</div>
+</div>
+<h2 class="mt-8 w-full truncate text-center text-3xl font-bold tracking-tight text-white md:text-4xl">Not Playing</h2>
+<p class="mt-2 text-center text-base text-white/55 sm:text-lg">选一首歌，或搜索</p>
+<div class="mx-auto mt-10 w-full max-w-[22rem]">
+<div role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" class="group relative -my-2 flex h-4 cursor-pointer touch-none items-center">
+<div class="h-2 w-full overflow-hidden rounded-full bg-white/20 transition-[height] group-hover:h-3">
+<div class="h-full rounded-full bg-white" style="width:0%">
+</div>
+</div>
+</div>
+<div class="mt-1 flex items-center justify-between text-[11px] tabular-nums text-white/40">
+<span>0:00</span>
+<span>0:00</span>
+</div>
+</div>
+<div class="mt-5 flex items-center gap-2">
+<button type="button" aria-label="播放列表" title="播放列表 (/ 搜索)" class="grid size-14 place-items-center text-white/45 transition-colors hover:text-white">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-7">
+<path d="M3 7h8">
+</path>
+<path d="M3 12h8">
+</path>
+<path d="M3 17h5">
+</path>
+<path d="M19 16.5V6.5">
+</path>
+<circle cx="16" cy="16.5" r="3">
+</circle>
+</svg>
+</button>
+<button type="button" aria-label="上一首" title="上一首 (P)" class="grid size-14 place-items-center text-white/45 transition-colors hover:text-white">
+<svg viewBox="0 0 24 24" fill="currentColor" class="size-7">
+<path d="M7 6v12M20 6v12l-10-6 10-6Z">
+</path>
+</svg>
+</button>
+<button type="button" aria-label="播放" title="播放 (空格)" class="mx-3 grid size-20 place-items-center rounded-full bg-white text-neutral-950 shadow-[0_10px_36px_rgba(0,0,0,0.5)] transition-transform hover:scale-105 active:scale-95">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-8 translate-x-[0.5px]">
+<path d="M7 4.5v15l13-7.5-13-7.5Z" fill="currentColor" stroke="none">
+</path>
+</svg>
+</button>
+<button type="button" aria-label="下一首" title="下一首 (N)" class="grid size-14 place-items-center text-white/45 transition-colors hover:text-white">
+<svg viewBox="0 0 24 24" fill="currentColor" class="size-7">
+<path d="M17 6v12M4 6v12l10-6L4 6Z">
+</path>
+</svg>
+</button>
+<button type="button" aria-label="循环模式" title="循环模式 (R)" class="grid size-14 place-items-center text-white/45 transition-colors hover:text-white relative ">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="size-7">
+<path d="M17 2l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3">
+</path>
+</svg>
+</button>
+</div>
+</div>
+<div class="mx-auto hidden min-h-0 w-full max-w-[46rem] flex-col lg:flex lg:max-w-none">
+<div class="my-auto flex min-h-0 max-h-[min(66vh,34rem)] w-full flex-col overflow-y-auto overscroll-contain py-2 pr-2 text-left [mask-image:linear-gradient(to_bottom,transparent,#000_10%,#000_90%,transparent)]">
+<p class="py-8 text-xs text-white/35">暂无歌词</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div aria-hidden="true" class="fixed inset-0 z-[91] bg-[#0a0812]/60 backdrop-blur-[2px] transition-opacity duration-300 pointer-events-none opacity-0">
+</div>
+<aside role="dialog" aria-label="播放列表" style="--cp-accent:rgb(163,143,255);--cp-pill:rgba(124,92,196,0.10);--cp-pill-strong:rgba(124,92,196,0.18);--cp-glow:rgba(124,92,196,0.12);background:linear-gradient(180deg, rgba(22,19,30,0.95) 0%, rgba(11,9,16,0.98) 100%)" class="fixed inset-x-0 bottom-0 z-[92] flex max-h-[86vh] flex-col overflow-hidden rounded-t-3xl ring-1 ring-white/15 shadow-[0_-24px_80px_-28px_rgba(0,0,0,0.95)] backdrop-blur-2xl transition-all duration-300 ease-out lg:inset-y-5 lg:inset-x-auto lg:right-5 lg:max-h-none lg:w-[min(100%,23rem)] lg:rounded-3xl lg:shadow-[0_30px_90px_-24px_rgba(0,0,0,0.95)] translate-y-full opacity-0 lg:translate-y-0 lg:translate-x-[calc(100%+1.25rem)] hidden">
+<span aria-hidden="true" class="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(80%_60%_at_30%_0%,var(--cp-glow),transparent_65%)]">
+</span>
+<span aria-hidden="true" class="relative z-10 mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-white/20 lg:hidden">
+</span>
+<div class="relative z-10 flex shrink-0 items-center gap-3.5 px-5 pb-4 pt-4 lg:pt-5">
+<span class="grid size-12 shrink-0 place-items-center rounded-xl bg-white/10 text-white/35 ring-1 ring-white/10">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-5">
+<path d="M9 18V5l12-2v13">
+</path>
+<circle cx="6" cy="18" r="3">
+</circle>
+<circle cx="18" cy="16" r="3">
+</circle>
+</svg>
+</span>
+<div class="min-w-0 flex-1">
+<h2 class="flex items-center gap-2 text-base font-semibold tracking-tight text-white">播放列表<span class="size-1.5 shrink-0 rounded-full bg-[var(--cp-accent)]">
+</span>
+</h2>
+<p class="mt-0.5 truncate text-[13px] text-white/50">未选择歌单</p>
+</div>
+<button type="button" aria-label="关闭播放列表" class="grid size-9 shrink-0 place-items-center rounded-full border border-white/15 text-white/60 transition-colors hover:bg-white/10 hover:text-white">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-4">
+<path d="M6 6l12 12M18 6 6 18">
+</path>
+</svg>
+</button>
+</div>
+<div class="relative z-10 flex shrink-0 items-center gap-2 px-5 pb-4">
+<div class="flex flex-1 items-center gap-2.5 rounded-full bg-white/[0.08] px-4 py-2.5 ring-1 ring-white/10 transition-colors focus-within:ring-[var(--cp-pill-strong)] hover:ring-[var(--cp-pill)]">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="size-4 shrink-0 text-white/45">
+<circle cx="11" cy="11" r="6.5">
+</circle>
+<path d="m20 20-4.2-4.2">
+</path>
+</svg>
+<input placeholder="搜索网易云歌曲" aria-label="搜索网易云歌曲" class="min-w-0 flex-1 bg-transparent text-[15px] text-white outline-none placeholder:text-white/40" value=""/>
+</div>
+</div>
+<div class="relative z-10 flex min-h-0 flex-col gap-8 overflow-y-auto overscroll-contain px-5 pb-[calc(1.75rem+env(safe-area-inset-bottom))]">
+<div>
+<h3 class="flex items-center gap-2 text-[13px] font-semibold tracking-wide text-white/45">
+<span class="size-1.5 shrink-0 rounded-full bg-[var(--cp-accent)]">
+</span>歌单</h3>
+<div class="mt-2 flex flex-col gap-1">
+<button type="button" aria-pressed="false" class="group flex items-center gap-3.5 rounded-xl px-2 py-2.5 text-left transition-colors  hover:bg-[var(--cp-pill)] active:bg-[var(--cp-pill-strong)]">
+<span class="size-2 shrink-0 rounded-full transition-colors border border-white/30 group-hover:border-white/50">
+</span>
+<span class="min-w-0 flex-1 truncate text-[15px] transition-colors text-white/75 group-hover:text-white">收藏歌单</span>
+</button>
+<button type="button" aria-pressed="false" class="group flex items-center gap-3.5 rounded-xl px-2 py-2.5 text-left transition-colors  hover:bg-[var(--cp-pill)] active:bg-[var(--cp-pill-strong)]">
+<span class="size-2 shrink-0 rounded-full transition-colors border border-white/30 group-hover:border-white/50">
+</span>
+<span class="min-w-0 flex-1 truncate text-[15px] transition-colors text-white/75 group-hover:text-white">热歌榜</span>
+</button>
+<button type="button" aria-pressed="false" class="group flex items-center gap-3.5 rounded-xl px-2 py-2.5 text-left transition-colors  hover:bg-[var(--cp-pill)] active:bg-[var(--cp-pill-strong)]">
+<span class="size-2 shrink-0 rounded-full transition-colors border border-white/30 group-hover:border-white/50">
+</span>
+<span class="min-w-0 flex-1 truncate text-[15px] transition-colors text-white/75 group-hover:text-white">新歌榜</span>
+</button>
+<button type="button" aria-pressed="false" class="group flex items-center gap-3.5 rounded-xl px-2 py-2.5 text-left transition-colors  hover:bg-[var(--cp-pill)] active:bg-[var(--cp-pill-strong)]">
+<span class="size-2 shrink-0 rounded-full transition-colors border border-white/30 group-hover:border-white/50">
+</span>
+<span class="min-w-0 flex-1 truncate text-[15px] transition-colors text-white/75 group-hover:text-white">飙升榜</span>
+</button>
+</div>
+</div>
+<div class="flex min-h-0 flex-col">
+<div class="flex items-center justify-between">
+<h3 class="flex items-center gap-2 text-[13px] font-semibold tracking-wide text-white/45">
+<span class="size-1.5 shrink-0 rounded-full bg-[var(--cp-accent)]">
+</span>歌曲列表</h3>
+</div>
+<p class="py-3 text-sm text-white/40">歌单是空的</p>
+<ul class="mt-2">
+</ul>
+</div>
+</div>
+</aside>
+<script src="./data.js" defer>
+</script>
+<script src="./replica.js" defer>
+</script>
+<script src="./pages.js" defer>
+</script>
+</body>
+</html>

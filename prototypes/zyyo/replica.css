@@ -1,0 +1,20 @@
+/* Small standalone behavior layer; the reference layout is in styles.css. */
+.home-desktop { opacity: 1 !important; }
+#site-loader, .react-resizable-handle { display: none; }
+.home-desktop .react-grid-item { min-width: 0; }
+.home-desktop .card[draggable=true] { cursor: grab; }
+.card.dragging { opacity: .45; }
+.card.drop-target { outline: 1px dashed #7dd3fc; outline-offset: -5px; }
+[role=link], [aria-label="Toggle theme"] { cursor: pointer; }
+.replica-menu { position: fixed; top: 76px; right: 20px; z-index: 70; width: 200px; padding: 9px; border-radius: 18px; background: var(--card-bg); border: 2px solid var(--card-border); box-shadow: 0 16px 40px #0003; }
+.replica-menu a, .replica-menu button { display: block; width: 100%; padding: 10px 14px; border-radius: 10px; text-align: left; font-size: 14px; }
+.replica-menu a:hover, .replica-menu button:hover { background: var(--hover-fill); }
+.replica-dialog { color: var(--color-neutral-100); background: #121017; width: min(520px, calc(100% - 32px)); border: 1px solid #ffffff20; border-radius: 24px; padding: 32px; margin: auto; box-shadow: 0 30px 100px #0008; }
+.replica-dialog::backdrop { background: #0009; backdrop-filter: blur(12px); }
+.replica-dialog h2 { font-family: 'Noto Serif SC', Georgia, serif; font-size: 24px; margin-bottom: 16px; }
+.replica-dialog p { color: #aaa; font-size: 14px; line-height: 1.8; }
+.replica-dialog button, .replica-dialog label { cursor: pointer; display: inline-flex; border: 1px solid #ffffff25; border-radius: 999px; padding: 8px 16px; margin-top: 20px; margin-right: 8px; font-size: 14px; }
+.replica-dialog audio { width: 100%; margin-top: 24px; }
+.replica-toast { position: fixed; z-index: 100; bottom: 28px; left: 50%; transform: translateX(-50%); padding: 12px 20px; border-radius: 999px; background: var(--card-bg); border: 1px solid var(--card-border); box-shadow: 0 8px 32px #0002; font-size: 14px; max-width: calc(100% - 32px); text-align: center; }
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) { .zyyo-dash { animation: none; stroke-dashoffset: 0; opacity: 1; } }

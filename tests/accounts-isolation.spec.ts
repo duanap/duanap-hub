@@ -85,6 +85,7 @@ test('disable hides account routes and re-enable invalidates previous sessions',
 })
 
 test('read-only account page works on mobile and dark theme with private headers',async({page,request})=>{
+  await page.addInitScript(()=>localStorage.setItem('hub-theme','light'))
   await loginAccount(page.request)
   await page.goto('/account');await expect(page.getByRole('heading',{name:'Alice',exact:true})).toBeVisible()
   await expect(page.locator('.account-balance')).toHaveText('100')

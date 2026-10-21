@@ -62,6 +62,7 @@ test('admin settings require authentication and source checks; public cannot rep
 })
 
 test('Studio saves category, pin, order and card size with unsaved protection on mobile dark UI',async({page})=>{
+ await page.addInitScript(()=>localStorage.setItem('hub-theme','light'))
   await page.request.post('/api/studio/login',{headers,data:{username:'duanap',password:process.env.HUB_TEST_ADMIN_PASSWORD}})
   await sync(page.request);await page.setViewportSize({width:390,height:844});await page.goto('/duanap');await page.getByRole('button',{name:'博客动态',exact:true}).click()
   await page.getByLabel('博客区域标题',{exact:true}).fill('我的博客笔记')

@@ -1,3 +1,4 @@
+import { HomeBoard } from '@/components/public/HomeBoard'
 import {EdgeoneWidget} from '@/components/EdgeoneWidget'
 import {getEdgeoneSettings,edgeoneSnapshot} from '@/lib/edgeone'
 import Link from 'next/link'
@@ -12,8 +13,6 @@ import { ENTRY_LABELS,type ModuleState } from '@/lib/types'
 import { GithubWidget } from '@/components/GithubWidget'
 import { getGithubSettings,githubSnapshot } from '@/lib/github'
 import { publicTools } from '@/lib/tool-settings'
-import { QQLoginLink } from '@/components/QQLoginLink'
-import { qqLoginDestination } from '@/lib/qq-login'
 import { BlogWidget } from '@/components/BlogWidget'
 import { contentSnapshot,getContentSettings } from '@/lib/content'
 
@@ -59,22 +58,9 @@ export default function HomePage() {
     { '@type': 'Person', '@id': SITE_BASE + '#person', name: site.displayName, url: SITE_BASE, description: site.tagline,
       image: site.avatarUrl ? new URL(site.avatarUrl, SITE_BASE).href : undefined, sameAs: [site.githubUrl, ...site.socialLinks.map(link => link.url)].filter(Boolean) },
   ] }
-  return <PublicShell>
+  return <PublicShell wide>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
-    <section className="hero">
-      {site.avatarUrl && <img className="hero-avatar" src={site.avatarUrl} alt={site.displayName + '头像'} />}
-      <span className="eyebrow">DUANAP / PERSONAL SPACE</span>
-      <h1>{site.displayName}<span className="hero-period">.</span></h1>
-      <p className="hero-lead">{site.tagline}</p>
-      <div className="hero-actions">
-        {showProjects && <Link className="action-primary" href="/projects">探索作品 <span>↗</span></Link>}
-        {isEnabled('about') && <Link className="action-secondary" href="/about">关于我</Link>}
-        <QQLoginLink />
-      </div>
-      {!qqLoginDestination() && <p className="qq-login-status">QQ登录尚未开通，公开内容可直接浏览。</p>}
-      <div className="contact-list">{site.githubUrl && <a href={site.githubUrl} target="_blank" rel="noopener noreferrer">GitHub ↗</a>}
-        {site.publicEmail && <a href={'mailto:' + site.publicEmail}>公开邮箱</a>}{site.socialLinks.map((link, index) => <a href={link.url} key={index} target="_blank" rel="noopener noreferrer">{link.label}</a>)}</div>
-    </section>
-    <div className="home-widgets">{modules.map(module=><div className={'home-widget widget-size-'+module.size} key={module.id}>{renderModule(module)}</div>)}</div>
+    <HomeBoard />
+    <div className="hub-home-content home-widgets">{modules.map(module=><div className={'home-widget widget-size-'+module.size} key={module.id}>{renderModule(module)}</div>)}</div>
   </PublicShell>
 }

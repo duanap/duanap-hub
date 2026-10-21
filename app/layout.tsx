@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import { SITE_ORIGIN } from '@/lib/config'
 import { getSiteSettings } from '@/lib/db'
 import './globals.css'
+import './public-fonts.css'
+import './public.css'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'

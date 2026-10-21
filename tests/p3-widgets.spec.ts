@@ -3,6 +3,7 @@ import {gunzipSync} from 'node:zlib'
 import Database from 'better-sqlite3'
 const headers={Origin:'http://127.0.0.1:1027'}
 test('home widgets support independent size/order without enabling account API dependencies',async({page})=>{
+ await page.addInitScript(()=>localStorage.setItem('hub-theme','light'))
  await page.request.post('/api/studio/login',{headers,data:{username:'duanap',password:process.env.HUB_TEST_ADMIN_PASSWORD}})
  await page.goto('/duanap');await page.getByRole('button',{name:'模块管理',exact:true}).click();await page.getByRole('combobox',{name:'首页尺寸 关于我',exact:true}).selectOption('small');await expect(page.getByText('首页卡片尺寸已保存',{exact:true})).toBeVisible()
  await page.goto('/');await expect(page.locator('.home-widget:has([data-module=about])')).toHaveClass(/widget-size-small/);await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'切换深色模式',exact:true}).click();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
