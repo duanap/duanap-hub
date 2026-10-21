@@ -11,17 +11,18 @@ import { BackupPanel } from './studio/BackupPanel'
 import { ThemeControl } from '@/components/ThemeControl'
 import { ContentManager } from './studio/ContentManager'
 import { HomeEditor } from './studio/HomeEditor'
+import { MusicLibraryEditor } from './studio/MusicLibraryEditor'
 import { BlogPanel } from './studio/BlogPanel'
 import type { ContentSettings,ContentSnapshot } from '@/lib/content-types'
 import type {GithubSettings,GithubSnapshot} from '@/lib/github-types'
 import type {ToolSettings} from '@/lib/tools'
 
-type Tab = 'albums' | 'notes' | 'links' | 'overview' | 'projects' | 'site' | 'home' | 'content' | 'tools' | 'github' | 'edgeone' | 'seo' | 'modules' | 'system'
-const nav: [Tab, string][] = [['overview', '概览'], ['projects', '项目与公告'], ['albums','相册管理'], ['notes','个人随记'], ['links','友链管理'], ['site', '主页资料'], ['home', '首页编排'], ['content','博客动态'], ['tools','工具配置'],['github','GitHub 动态'],['edgeone','EdgeOne 数据'],['seo', 'SEO 与备案'], ['modules', '模块管理'], ['system', '系统信息']]
+type Tab = 'music' | 'albums' | 'notes' | 'links' | 'overview' | 'projects' | 'site' | 'home' | 'content' | 'tools' | 'github' | 'edgeone' | 'seo' | 'modules' | 'system'
+const nav: [Tab, string][] = [['overview', '概览'], ['projects', '项目与公告'], ['albums','相册管理'], ['notes','文案管理'], ['links','友链管理'], ['music','歌曲库'], ['site', '主页资料'], ['home', '首页编排'], ['content','博客摘要'], ['tools','工具配置'],['github','GitHub 动态'],['edgeone','EdgeOne 数据'],['seo', 'SEO 与备案'], ['modules', '模块管理'], ['system', '系统信息']]
 const groups: { label: string; tabs: Tab[] }[] = [
   { label: '工作台', tabs: ['overview'] },
-  { label: '内容管理', tabs: ['projects', 'albums', 'notes', 'links', 'content', 'tools','github','edgeone','site', 'home', 'modules'] },
-  { label: '站点管理', tabs: ['seo', 'system'] },
+  { label: '内容管理', tabs: ['albums', 'notes', 'links', 'music', 'content'] },
+  { label: '站点管理', tabs: ['site', 'home', 'seo', 'modules', 'system'] },
 ]
 
 async function api<T>(url: string, method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', payload?: object): Promise<T> {
@@ -224,19 +225,19 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
     {error && <div className="error-banner" role="alert">{error}</div>}{notice && <div className="success-banner" role="status">{notice}</div>}
     {tab === 'overview' && <>
       <div className="studio-metrics">
-        <div className="metric-tile"><span>项目总数</span><strong>{projects.length}</strong><small>含草稿</small></div>
-        <div className="metric-tile"><span>已发布项目</span><strong>{projects.filter(project => project.published).length}</strong><small>当前公开</small></div>
-        <div className="metric-tile"><span>启用模块</span><strong>{modules.filter(module => module.enabled).length}</strong><small>内置注册模块</small></div>
-        <div className="metric-tile"><span>已发布动态</span><strong>{entries.filter(entry => entry.published && (!entry.effectiveAt || entry.effectiveAt <= new Date().toISOString()) && projects.some(project => project.id === entry.projectId && project.published)).length}</strong><small>公开项目的更新与公告</small></div>
+        <div className="metric-tile"><span>首页卡片</span><strong>{settings.homeWidgets.filter(widget => widget.enabled).length}</strong><small>后台编排</small></div>
+        <div className="metric-tile"><span>歌曲库</span><strong>{settings.musicPlaylist.length}</strong><small>已添加歌曲</small></div>
+        <div className="metric-tile"><span>兴趣标签</span><strong>{settings.homeTags.length}</strong><small>自行填写</small></div>
+        <div className="metric-tile"><span>自定义图标</span><strong>{Object.values(settings.publicIcons).filter(Boolean).length}</strong><small>导航与首页</small></div>
       </div>
       <div className="studio-grid-two"><section className="studio-card"><h2>快捷操作</h2><div className="quick-grid">
-        <button disabled={locked} onClick={() => editProject()}>新增项目 <span>↗</span></button>
+        <button disabled={locked} onClick={() => changeTab('albums')}>管理相册 <span>↗</span></button>
         <button disabled={locked} onClick={() => changeTab('site')}>编辑主页 <span>↗</span></button>
-        <button disabled={locked} onClick={() => changeTab('modules')}>管理模块 <span>↗</span></button>
-        <button disabled={locked} onClick={() => changeTab('seo')}>搜索设置 <span>↗</span></button>
-      </div></section><section className="studio-card"><h2>后续扩展</h2>
-        <div className="placeholder-stack">WordPress 会员与积分 · P2</div><div className="placeholder-stack">博客、游戏与外部数据 · P3</div>
-        <p className="form-hint">目前专注主站内容管理。</p></section></div>
+        <button disabled={locked} onClick={() => changeTab('notes')}>写一条文案 <span>↗</span></button>
+        <button disabled={locked} onClick={() => changeTab('music')}>管理歌曲 <span>↗</span></button>
+      </div></section><section className="studio-card"><h2>开始记录</h2>
+        <p>照片放进相册，心情写成文案，喜欢的歌留在歌曲库。</p>
+        <p className="form-hint">首页编排里可以设置卡片、照片来源、兴趣标签和自定义图标。</p></section></div>
     </>}
     {tab === 'projects' && <ProjectWorkspace projects={projects} entries={projectEntries} draft={draft} entryDraft={entryDraft}
       activeProjectId={activeProjectId} activeEntryId={activeEntryId} editorOpen={projectEditorOpen}
@@ -255,6 +256,7 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
         <div className="field"><span>其他社交入口</span>{settings.socialLinks.map((link, index) => <div className="social-editor" key={index}>
           <input aria-label={'社交名称 ' + (index + 1)} value={link.label} placeholder="QQ / 个人主页" onChange={event => field('socialLinks', settings.socialLinks.map((value, idx) => idx === index ? { ...value, label: event.target.value } : value))} />
           <input aria-label={'社交地址 ' + (index + 1)} value={link.url} placeholder="https://…" onChange={event => field('socialLinks', settings.socialLinks.map((value, idx) => idx === index ? { ...value, url: event.target.value } : value))} />
+          <MediaPicker label={'社交图标 ' + (index + 1)} value={link.iconUrl || ''} onChange={iconUrl => field('socialLinks', settings.socialLinks.map((value, idx) => idx === index ? { ...value, iconUrl } : value))} onBusyChange={onMediaBusyChange} />
           <button type="button" className="text-action destructive" onClick={() => field('socialLinks', settings.socialLinks.filter((_, idx) => idx !== index))}>移除</button>
         </div>)}<button type="button" className="action-secondary" disabled={settings.socialLinks.length >= 12} onClick={() => field('socialLinks', [...settings.socialLinks, { label: '', url: '' }])}>添加社交入口</button></div>
       </div></section><div className="studio-form-bottom"><span className="draft-indicator">{settingsDirty ? '有未保存的修改' : ''}</span>
@@ -262,16 +264,13 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
     </fieldset>}
     {tab === 'site' && <section className="studio-card"><BlogPanel disabled={locked || settingsDirty} onBusyChange={onContentBusyChange} /></section>}
     {tab === 'home' && <>
-      <fieldset className="studio-fieldset" disabled={locked}><section className="studio-card"><div className="card-heading"><div><h2>首页编排</h2><p>模块顺序由模块管理控制，保存后访客立即看到新内容。</p></div><button type="button" className="action-secondary" onClick={() => setPreview(!preview)}>{preview ? '收起首页预览' : '显示首页预览'}</button></div>
-        <div className="form-columns"><label className="field"><span>首页项目数量</span><input type="number" min={1} max={24} value={settings.homeProjectsLimit} onChange={event => field('homeProjectsLimit', Number(event.target.value))} /></label>
-          <label className="field"><span>项目展示样式</span><select value={settings.homeLayout} onChange={event => field('homeLayout', event.target.value as HubSettings['homeLayout'])}><option value="cards">卡片</option><option value="compact">紧凑</option></select></label>
-          <label className="check-choice"><input type="checkbox" checked={settings.homeShowUpdates} onChange={event => field('homeShowUpdates', event.target.checked)} />显示最近动态</label></div>
-        <HomeEditor settings={settings} field={field} />
-        <section className="home-section"><h3>工具中心内容</h3><p>名称、帮助、独立 SEO 与启停在工具配置中维护。</p><button type="button" onClick={()=>changeTab('tools')}>前往工具配置</button></section>
+      <fieldset className="studio-fieldset" disabled={locked}><section className="studio-card"><div className="card-heading"><div><h2>首页编排</h2><p>自行设置首页展示内容，保存后生效。</p></div><button type="button" className="action-secondary" onClick={() => setPreview(!preview)}>{preview ? '收起首页预览' : '显示首页预览'}</button></div>
+        <HomeEditor settings={settings} field={field} onMediaBusyChange={onMediaBusyChange} />
         <div className="form-actions"><button type="button" className="action-secondary" onClick={() => changeTab('modules')}>调整模块顺序与启停</button><button type="button" className="action-primary" onClick={() => void saveSite()}>保存首页设置</button></div>
       </section></fieldset>
       {preview && <section className="studio-card"><div className="card-heading"><h2>首页预览</h2><button type="button" className="action-secondary" onClick={() => setPhonePreview(!phonePreview)}>{phonePreview ? '桌面预览' : '手机预览'}</button></div><p>预览显示已经保存的公开首页。保存修改后刷新预览。</p><div className={'home-preview ' + (phonePreview ? 'phone-preview' : '')}><iframe key={JSON.stringify(savedSettings) + JSON.stringify(modules)} title="首页预览" src="/" /></div></section>}
     </>}
+    {tab === 'music' && <fieldset className="studio-fieldset" disabled={locked}><section className="studio-card"><MusicLibraryEditor settings={settings} field={field} onMediaBusyChange={onMediaBusyChange} /><div className="form-actions"><button type="button" className="action-primary" onClick={() => void saveSite()}>保存歌曲库</button></div></section></fieldset>}
     {tab === 'seo' && <fieldset className="studio-fieldset studio-grid-two" disabled={locked}>
       <section className="studio-card"><h2>SEO 基础设置</h2><div className="form-stack">{input('首页搜索标题', 'seoTitle')}
         <label className="field"><span>首页描述</span><textarea rows={4} value={settings.seoDescription} onChange={event => field('seoDescription', event.target.value)} /></label>
@@ -314,19 +313,16 @@ export function Studio({ initialSettings, initialModules, initialProjects, initi
         <p className="form-hint">按需缓存 30 分钟；失败后自动重试至少间隔 5 分钟，手动同步至少间隔 30 秒。请求量不是 UV/PV；缓释不是攻击次数。缓存命中率排除动态和其他请求，属于请求命中率；暂无数据不代表 0。</p>
       </section>
     </fieldset>}
-    {tab === 'modules' && <section className="studio-card"><div className="card-heading"><div><h2>模块管理</h2><p>启停、排序及首页区域尺寸会立即保存。外部数据卡片各自显示来源和同步状态。</p></div></div>
-      <div className="module-list">{modules.map((module, index) => <div className="module-row" key={module.id}><div><strong>{module.name}</strong>
-        <small>{module.summary} · 阶段 P{module.stage}</small></div><div className="module-actions">
-        {['about','projects','games','tools','content','github','edgeone'].includes(module.id)&&<select aria-label={'首页尺寸 '+module.name} disabled={locked} value={module.size} onChange={e=>void perform(async()=>{const result=await api<{modules:ModuleState[]}>('/api/studio/modules','PATCH',{id:module.id,size:e.target.value});setModules(result.modules)},'首页卡片尺寸已保存')}><option value="small">小区域</option><option value="medium">中区域</option><option value="large">大区域</option></select>}
-        <button type="button" className="mini-arrow" disabled={locked || index === 0} onClick={() => void moveModule(index, -1)} aria-label={'上移 ' + module.name}>↑</button>
-        <button type="button" className="mini-arrow" disabled={locked || index === modules.length - 1} onClick={() => void moveModule(index, 1)} aria-label={'下移 ' + module.name}>↓</button>
+    {tab === 'modules' && <section className="studio-card"><div className="card-heading"><div><h2>页面开关</h2><p>控制公开页面与入口；首页卡片在首页编排中设置。</p></div></div>
+      <div className="module-list">{modules.filter(module => ['about','blog','photos','notes','links','content'].includes(module.id)).map(module => <div className="module-row" key={module.id}><div><strong>{module.name}</strong>
+        <small>{module.summary}</small></div><div className="module-actions">
         <label className="check-choice"><input type="checkbox" disabled={locked || !module.available} checked={module.enabled} onChange={() => void toggleModule(module)} />
           <span>{module.available ? (module.enabled ? '开启' : '关闭') : '待开发'}</span></label>
       </div></div>)}</div></section>}
     {tab === 'system' && <div className="studio-grid-two"><section className="studio-card"><h2>当前开发状态</h2>
       <div className="placeholder-stack">主站内容与独立管理员后台</div><div className="placeholder-stack">数据：SQLite / WAL</div>
-      <div className="placeholder-stack">账号、积分与游戏：后续阶段</div></section>
-      <section className="studio-card"><h2>发布与备份</h2><p>支持媒体管理、在线备份及停机恢复。旧站导入单独执行，普通用户数据按独立备份流程保留。</p>
+      <div className="placeholder-stack">相册 / 文案 / 友链 / 歌曲库</div></section>
+      <section className="studio-card"><h2>发布与备份</h2><p>支持媒体管理、在线备份及停机恢复。资料、歌曲库、图标、相册和文案随内容备份保存。</p>
         <a className="subtle-link" href="/api/health" target="_blank" rel="noopener noreferrer">查看健康检查 ↗</a></section><MediaPanel /><BackupPanel /></div>}
   </main></div>
 }

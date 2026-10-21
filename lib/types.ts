@@ -4,7 +4,8 @@ export type EntryType = 'changelog' | 'preview' | 'notice' | 'roadmap' | 'rules'
 export type RoadmapStatus = 'idea' | 'planned' | 'in-progress' | 'done' | 'paused'
 export type HomeWidgetId = 'intro' | 'clock' | 'garden' | 'photos' | 'tags' | 'globe' | 'console' | 'blog' | 'notes' | 'quote' | 'music' | 'info' | 'reading'
 export type HomeWidget = { id: HomeWidgetId; enabled: boolean; width: 'auto' | 'small' | 'wide' | 'full' }
-export type MusicTrack = { title: string; artist: string; url: string; coverUrl: string }
+export type MusicTrack = { title: string; artist: string; url: string; coverUrl: string; enabled?: boolean }
+export type PublicIconId = 'logo' | 'blog' | 'photos' | 'notes' | 'links' | 'about' | 'code' | 'mail' | 'music' | 'rss'
 export type BlogPost = { id: number; title: string; excerpt: string; url: string; date: string; imageUrl: string; tags: string[] }
 export type BlogIndex = { posts: BlogPost[]; fetchedAt: string; stale: boolean; status: 'disabled' | 'unconfigured' | 'ready' | 'unavailable'; truncated: boolean }
 
@@ -33,9 +34,17 @@ export type HubSettings = {
   homeConsole: string
   homeReadingText: string
   homeReadingUrl: string
+  homeGreeting: string
+  homeTags: string[]
+  homeGardenText: string
+  homeQuoteAuthor: string
+  homeReadingLabel: string
+  homePhotosSource: 'albums' | 'custom'
+  homePhotoUrls: string[]
+  publicIcons: Partial<Record<PublicIconId, string>>
   musicPlaylist: MusicTrack[]
   blogSyncEnabled: boolean
-  socialLinks: { label: string; url: string }[]
+  socialLinks: { label: string; url: string; iconUrl?: string }[]
   passwordToolTitle: string
   passwordToolDescription: string
 }

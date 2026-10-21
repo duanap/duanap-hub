@@ -73,11 +73,11 @@ function validate(kind: ContentKind, value: unknown) {
 function checked<K extends ContentKind>(kind: K, patch: ReturnType<typeof validate>, old?: ManagedContent[K]) {
   const defaults = { title: '', summary: '', coverUrl: '', images: [], body: '', imageUrl: '', publishedAt: '', url: '', groupName: '', iconUrl: '', sortOrder: 0, published: false }
   const merged = { ...defaults, ...old, ...patch }
-  if (!merged.title) throw new Error('请填写标题')
-  if (kind === 'albums' && (merged.images as AlbumImage[]).length + (merged.coverUrl && !(merged.images as AlbumImage[]).some(image => image.url === merged.coverUrl) ? 1 : 0) > 48) throw new Error('封面与相册图片合计最多 48 张')
-  if (kind === 'albums' && merged.published && !merged.coverUrl && !(merged.images as AlbumImage[]).length) throw new Error('公开相册至少需要一张图片')
+  if (kind !== 'notes' && !merged.title) throw new Error('请填写标题')
+  if (kind === 'albums' && merged.published && !(merged.images as AlbumImage[]).length) throw new Error('公开相册至少需要一张照片，封面单独设置')
   if (kind === 'notes') {
-    if (merged.published && !merged.body) throw new Error('公开随记需要正文')
+    if (merged.published && !merged.body) throw new Error('请填写文案正文')
+    if (!merged.body && !merged.title) throw new Error('请填写文案正文或草稿标题')
     if (merged.published && !merged.publishedAt) merged.publishedAt = new Date().toISOString()
   }
   if (kind === 'links' && merged.published && !merged.url) throw new Error('公开友链需要地址')

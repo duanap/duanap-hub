@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { Markdown } from '@/components/Markdown'
-import { ENTRY_LABELS } from '@/lib/types'
 import type { getPublicAlbums, getPublicLinks, getPublicNotes } from '@/lib/public-content'
 import { HubIcon } from './HubIcon'
 
@@ -17,7 +16,7 @@ export function AlbumGallery({ albums }: { albums: ReturnType<typeof getPublicAl
   function moveImage(delta: number) { if (images.length) setImageIndex(index => (index + delta + images.length) % images.length) }
   return <>
     {album ? <section aria-label={album.title + '相册'}>
-      <div className="hub-album-heading"><button type="button" className="hub-pill-link" onClick={() => setAlbumId(null)}>← 全部相册</button><h2>{album.title}</h2><span>{images.length} 张图片</span>{album.href && <Link href={album.href}>项目详情 ↗</Link>}</div>
+      <div className="hub-album-heading"><button type="button" className="hub-pill-link" onClick={() => setAlbumId(null)}>← 全部相册</button><h2>{album.title}</h2><span>{images.length} 张照片</span></div>
       {album.summary && <p className="hub-album-summary">{album.summary}</p>}
       <div className="hub-image-grid">{images.map((image, index) => <button type="button" key={image.url} aria-label={'查看图片 ' + (index + 1)} onClick={() => openImage(index)}><img src={image.url} alt={image.caption || album.title + ' 图片 ' + (index + 1)} loading="lazy" />{image.caption && <span className="hub-image-caption">{image.caption}</span>}</button>)}</div>
     </section> : <div className="hub-album-grid">{albums.map(item => <button className="hub-album-cover" type="button" key={item.id} onClick={() => setAlbumId(item.id)} aria-label={'打开相册：' + item.title}>
@@ -45,7 +44,7 @@ export function NotesFeed({ notes }: { notes: ReturnType<typeof getPublicNotes> 
     if (window.location.hash) { const target = document.getElementById(window.location.hash.slice(1)); target?.scrollIntoView() }
   }, [page])
   const ordered = order ? [...notes].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)) : notes
-  const filtered = ordered.filter(note => `${note.title} ${note.body} ${note.projectTitle}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
+  const filtered = ordered.filter(note => `${note.title} ${note.body} ${note.author}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
   const visible = filtered.slice(page * 18, (page + 1) * 18)
   function randomize() {
     const ids = notes.map(note => note.id)
@@ -53,13 +52,13 @@ export function NotesFeed({ notes }: { notes: ReturnType<typeof getPublicNotes> 
     setOrder(ids); setPage(0)
   }
   return <>
-    <div className="hub-content-toolbar"><div className="hub-segmented"><button type="button" aria-pressed={!order} onClick={() => { setOrder(null); setPage(0) }}>按时间</button><button type="button" aria-pressed={!!order} onClick={randomize}>随机看看</button></div><label className="hub-search"><HubIcon name="search" /><input type="search" aria-label="搜索动态" placeholder="Search notes…" value={query} onChange={event => { setQuery(event.target.value); setPage(0) }} /></label></div>
+    <div className="hub-content-toolbar"><div className="hub-segmented"><button type="button" aria-pressed={!order} onClick={() => { setOrder(null); setPage(0) }}>按时间</button><button type="button" aria-pressed={!!order} onClick={randomize}>随机看看</button></div><label className="hub-search"><HubIcon name="search" /><input type="search" aria-label="搜索文案" placeholder="Search notes…" value={query} onChange={event => { setQuery(event.target.value); setPage(0) }} /></label></div>
     {visible.length ? <div className="hub-notes-columns">{visible.map(note => <article className="hub-card hub-note" key={note.id} id={note.id} data-note-id={note.id}>
-      {note.imageUrl && <img className="hub-note-image" src={note.imageUrl} alt={note.title + '配图'} loading="lazy" />}<small className="hub-note-type">{note.type === 'note' ? '个人随记' : ENTRY_LABELS[note.type]}</small><h2>{note.title}</h2><div className={'markdown hub-note-body' + (!expanded.includes(note.id) ? ' hub-note-clamped' : '')}><Markdown>{note.body}</Markdown></div>
+      {note.imageUrl && <img className="hub-note-image" src={note.imageUrl} alt={note.title ? note.title + '配图' : '文案配图'} loading="lazy" />}{note.title && <h2>{note.title}</h2>}<div className={'markdown hub-note-body' + (!expanded.includes(note.id) ? ' hub-note-clamped' : '')}><Markdown>{note.body}</Markdown></div>
       {note.body.length > 140 && <button className="hub-expand" type="button" aria-expanded={expanded.includes(note.id)} onClick={() => setExpanded(expanded.includes(note.id) ? expanded.filter(id => id !== note.id) : [...expanded, note.id])}>{expanded.includes(note.id) ? '收起' : '展开'}</button>}
-      <div className="hub-note-footer"><time dateTime={note.date || undefined}>{note.date?.slice(0, 10)}</time><Link href={note.href}>{note.projectTitle} ↗</Link></div>
-    </article>)}</div> : <div className="hub-empty" role="status">没有找到匹配的动态。</div>}
-    {filtered.length > 18 && <nav className="hub-pagination" aria-label="动态分页"><button type="button" disabled={page === 0} onClick={() => setPage(page - 1)}>← 上一页</button><span>{page + 1} / {Math.ceil(filtered.length / 18)}</span><button type="button" disabled={(page + 1) * 18 >= filtered.length} onClick={() => setPage(page + 1)}>下一页 →</button></nav>}
+      <div className="hub-note-footer"><time dateTime={note.date}>{note.date.slice(5, 10)}</time><Link href={note.href}>{note.author}</Link></div>
+    </article>)}</div> : <div className="hub-empty" role="status">没有找到匹配的文案。</div>}
+    {filtered.length > 18 && <nav className="hub-pagination" aria-label="文案分页"><button type="button" disabled={page === 0} onClick={() => setPage(page - 1)}>← 上一页</button><span>{page + 1} / {Math.ceil(filtered.length / 18)}</span><button type="button" disabled={(page + 1) * 18 >= filtered.length} onClick={() => setPage(page + 1)}>下一页 →</button></nav>}
   </>
 }
 
